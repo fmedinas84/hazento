@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-La aplicación parte en modo demo con un workspace de Salud. En **Configuración → Negocio** se puede cambiar temporalmente entre Salud, Profesional creativo, Creador de contenido y una profesión basada en sesiones para validar la experiencia sin migrar datos.
+La aplicación parte en modo demo con un workspace de Salud. En **Configuración → Negocio** se puede cambiar temporalmente entre Salud, Diseñador, Influencer, Profesor y Otras actividades. El cambio adapta exclusivamente el lenguaje visible; no migra ni modifica los datos existentes.
 
 ## Persistencia temporal
 
