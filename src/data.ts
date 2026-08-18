@@ -1,11 +1,39 @@
-export type Vertical = 'health' | 'creative' | 'creator' | 'sessions'
+export type Vertical = 'health' | 'creative' | 'creator' | 'sessions' | 'other'
 
 export const verticalLabels = {
-  health: { account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención' },
-  creative: { account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', service: 'Servicio', services: 'Servicios' },
-  creator: { account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', service: 'Tipo de contenido', services: 'Tipos de contenido' },
-  sessions: { account: 'Alumno', accounts: 'Alumnos', engagement: 'Programa', engagements: 'Programas', prestation: 'Clase', prestations: 'Clases', service: 'Tipo de clase', services: 'Tipos de clase' },
+  health: {
+    profession: 'Salud', professionDescription: 'Pacientes, tratamientos y atenciones',
+    account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', navigationPrestation: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención',
+    createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención',
+    engagementDescription: 'Organiza tratamientos o planes de atención y revisa el avance de sus sesiones.',
+  },
+  creative: {
+    profession: 'Diseñador', professionDescription: 'Clientes, proyectos y entregables',
+    account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable',
+    engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
+  },
+  creator: {
+    profession: 'Influencer', professionDescription: 'Marcas, partnerships y contenidos',
+    account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
+    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido',
+    engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
+  },
+  sessions: {
+    profession: 'Profesor', professionDescription: 'Alumnos, planes y clases',
+    account: 'Alumno', accounts: 'Alumnos', engagement: 'Plan', engagements: 'Planes', prestation: 'Clase', prestations: 'Clases', navigationPrestation: 'Clases', service: 'Servicio', services: 'Servicios',
+    createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase',
+    engagementDescription: 'Organiza los planes de tus alumnos y revisa clases, avance y pagos.',
+  },
+  other: {
+    profession: 'Otras actividades', professionDescription: 'Clientes, proyectos y entregables',
+    account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable',
+    engagementDescription: 'Organiza tus proyectos y revisa entregas, avance y cobros.',
+  },
 } as const
+
+export const verticalOptions = (Object.keys(verticalLabels) as Vertical[]).map(value => ({ value, ...verticalLabels[value] }))
 
 export const accounts = [
   { id: 1, initials: 'MP', name: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
