@@ -1,9 +1,10 @@
-export type Vertical = 'health' | 'creative' | 'creator'
+export type Vertical = 'health' | 'creative' | 'creator' | 'sessions'
 
 export const verticalLabels = {
   health: { account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención' },
   creative: { account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', service: 'Servicio', services: 'Servicios' },
   creator: { account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', service: 'Tipo de contenido', services: 'Tipos de contenido' },
+  sessions: { account: 'Alumno', accounts: 'Alumnos', engagement: 'Programa', engagements: 'Programas', prestation: 'Clase', prestations: 'Clases', service: 'Tipo de clase', services: 'Tipos de clase' },
 } as const
 
 export const accounts = [
@@ -29,14 +30,20 @@ export const prestations = [
   { id: 4, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
   { id: 5, date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
   { id: 6, date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
+  { id: 7, date: '18 Ago · 09:00', account: 'Juan Soto', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
+  { id: 8, date: '19 Ago · 11:00', account: 'María Pérez', name: 'Control', origin: 'Tratamiento', status: 'Programada', amount: '$30.000', payment: 'Pendiente' },
+  { id: 9, date: '20 Ago · 15:30', account: 'Daniela Silva', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
+  { id: 10, date: '21 Ago · 10:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
+  { id: 11, date: '08 Ago · 12:00', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Plan', status: 'Completada', amount: '$45.000', payment: 'Pagado' },
+  { id: 12, date: '03 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
 ]
 
 export const opportunities = [
   { id: 1, account: 'Daniela Silva', title: 'Evaluación y plan inicial', amount: '$180.000', close: '24 Ago', contact: 'Daniela Silva', last: 'Hace 2 días', stage: 'Nuevo' },
-  { id: 2, account: 'Rodrigo Leiva', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Rodrigo Leiva', last: 'Ayer', stage: 'Contactado' },
-  { id: 3, account: 'Isidora Mora', title: 'Evaluación inicial', amount: '$45.000', close: '20 Ago', contact: 'Isidora Mora', last: 'Hoy', stage: 'Contactado' },
-  { id: 4, account: 'Fundación Norte', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Andrea Ruiz', last: 'Hace 3 días', stage: 'Propuesta' },
-  { id: 5, account: 'Centro Armonía', title: 'Convenio de derivación', amount: '$420.000', close: '05 Sep', contact: 'Tomás Vidal', last: 'Hace 7 días', stage: 'Negociación' },
+  { id: 2, account: 'Juan Soto', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Juan Soto', last: 'Ayer', stage: 'Contactado' },
+  { id: 3, account: 'Carolina Díaz', title: 'Evaluación y seguimiento', amount: '$165.000', close: '20 Ago', contact: 'Carolina Díaz', last: 'Hoy', stage: 'Contactado' },
+  { id: 4, account: 'Pedro González', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Pedro González', last: 'Hace 3 días', stage: 'Propuesta' },
+  { id: 5, account: 'Felipe Vargas', title: 'Retomar plan de seguimiento', amount: '$210.000', close: '05 Sep', contact: 'Felipe Vargas', last: 'Hace 7 días', stage: 'Negociación' },
 ]
 
 export const engagements = [
@@ -49,9 +56,9 @@ export const engagements = [
 export const activities = [
   { id: 1, title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente' },
   { id: 2, title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente' },
-  { id: 3, title: 'Enviar propuesta de taller', relation: 'Fundación Norte · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
+  { id: 3, title: 'Enviar propuesta de taller', relation: 'Pedro González · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
   { id: 4, title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente' },
-  { id: 5, title: 'Seguimiento convenio', relation: 'Centro Armonía · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
+  { id: 5, title: 'Retomar plan de seguimiento', relation: 'Felipe Vargas · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
 ]
 
 export const payments = [
@@ -60,6 +67,16 @@ export const payments = [
   { id: 3, date: '10 Ago', account: 'María Pérez', amount: '$35.000', method: 'Transferencia', status: 'Pagado', allocations: '1 atención' },
   { id: 4, date: '08 Ago', account: 'Carolina Díaz', amount: '$45.000', method: 'Tarjeta', status: 'Pagado', allocations: 'Evaluación' },
   { id: 5, date: '03 Ago', account: 'María Pérez', amount: '$70.000', method: 'Transferencia', status: 'Pagado', allocations: '2 atenciones' },
+]
+
+// Demo-only representation of the real payment_allocations table. Payment status is
+// derived from these records; it must never become a second source of truth.
+export const paymentAllocations = [
+  { id: 1, paymentId: 1, prestationId: 3, amount: 35000 },
+  { id: 2, paymentId: 2, prestationId: 4, amount: 15000 },
+  { id: 3, paymentId: 3, prestationId: 6, amount: 35000 },
+  { id: 4, paymentId: 4, prestationId: 11, amount: 45000 },
+  { id: 5, paymentId: 5, prestationId: 12, amount: 35000 },
 ]
 
 export const services = [

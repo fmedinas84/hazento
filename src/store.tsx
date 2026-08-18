@@ -4,6 +4,7 @@ import {
   activities as seedActivities,
   engagements as seedEngagements,
   opportunities as seedOpportunities,
+  paymentAllocations as seedPaymentAllocations,
   payments as seedPayments,
   prestations as seedPrestations,
   services as seedServices,
@@ -15,6 +16,7 @@ export type Engagement = (typeof seedEngagements)[number]
 export type Prestation = (typeof seedPrestations)[number]
 export type ActivityRecord = (typeof seedActivities)[number]
 export type Payment = (typeof seedPayments)[number]
+export type PaymentAllocation = (typeof seedPaymentAllocations)[number]
 export type Service = (typeof seedServices)[number]
 
 type DemoState = {
@@ -24,6 +26,7 @@ type DemoState = {
   prestations: Prestation[]
   activities: ActivityRecord[]
   payments: Payment[]
+  paymentAllocations: PaymentAllocation[]
   services: Service[]
 }
 
@@ -38,13 +41,14 @@ type DemoStore = DemoState & {
   updatePrestation: (id: number, changes: Partial<Prestation>) => void
   addActivity: (record: Omit<ActivityRecord, 'id'>) => ActivityRecord
   toggleActivity: (id: number) => void
-  addPayment: (record: Omit<Payment, 'id'>, prestationIds: number[]) => Payment
+  addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>) => Payment
   addService: (record: Omit<Service, 'id'>) => Service
+  updateService: (id: number, changes: Partial<Service>) => void
   toggleService: (id: number) => void
   resetDemo: () => void
 }
 
-const STORAGE_KEY = 'hazento-demo-v2'
+const STORAGE_KEY = 'hazento-demo-v3'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   accounts: seedAccounts,
@@ -53,6 +57,7 @@ const seedState: DemoState = {
   prestations: seedPrestations,
   activities: seedActivities,
   payments: seedPayments,
+  paymentAllocations: seedPaymentAllocations,
   services: seedServices,
 }
 
@@ -124,12 +129,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     toggleActivity(id) {
       setState(current => ({ ...current, activities: current.activities.map(record => record.id === id ? { ...record, status: record.status === 'Completada' ? 'Pendiente' : 'Completada' } : record) }))
     },
-    addPayment(record, prestationIds) {
+    addPayment(record, allocations) {
       const created: Payment = { ...record, id: nextId(state.payments) }
+      const firstAllocationId = nextId(state.paymentAllocations)
+      const createdAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
+        id: firstAllocationId + index,
+        paymentId: created.id,
+        prestationId: allocation.prestationId,
+        amount: allocation.amount,
+      }))
       setState(current => ({
         ...current,
         payments: [created, ...current.payments],
-        prestations: current.prestations.map(prestation => prestationIds.includes(prestation.id) ? { ...prestation, payment: 'Pagado' } : prestation),
+        paymentAllocations: [...current.paymentAllocations, ...createdAllocations],
       }))
       return created
     },
@@ -137,6 +149,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       const created: Service = { ...record, id: nextId(state.services) }
       setState(current => ({ ...current, services: [created, ...current.services] }))
       return created
+    },
+    updateService(id, changes) {
+      setState(current => ({ ...current, services: current.services.map(record => record.id === id ? { ...record, ...changes } : record) }))
     },
     toggleService(id) {
       setState(current => ({ ...current, services: current.services.map(record => record.id === id ? { ...record, active: !record.active } : record) }))
