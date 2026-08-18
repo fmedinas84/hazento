@@ -5,6 +5,8 @@ dist/
 .env.*.local
 *.tsbuildinfo
 *.log
+baseline.png
+audit-*.png
 .DS_Store
 Thumbs.db
 

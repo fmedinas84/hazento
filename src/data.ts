@@ -16,19 +16,19 @@ export const accounts = [
 ]
 
 export const agenda = [
-  { time: '09:00', name: 'María Pérez', type: 'Sesión individual', status: 'Confirmada', amount: '$35.000', tone: 'violet' },
-  { time: '10:30', name: 'Carolina Díaz', type: 'Evaluación inicial', status: 'Pendiente', amount: '$45.000', tone: 'orange' },
-  { time: '12:00', name: 'Daniela Silva', type: 'Llamada de seguimiento', status: 'Actividad', amount: '', tone: 'blue' },
-  { time: '15:00', name: 'Pedro González', type: 'Sesión individual', status: 'Confirmada', amount: '$35.000', tone: 'violet' },
+  { id: 1, time: '09:00', name: 'María Pérez', type: 'Sesión individual', status: 'Confirmada', amount: '$35.000', tone: 'violet' },
+  { id: 2, time: '10:30', name: 'Carolina Díaz', type: 'Evaluación inicial', status: 'Pendiente', amount: '$45.000', tone: 'orange' },
+  { id: 3, time: '12:00', name: 'Daniela Silva', type: 'Llamada de seguimiento', status: 'Actividad', amount: '', tone: 'blue' },
+  { id: 4, time: '15:00', name: 'Pedro González', type: 'Sesión individual', status: 'Confirmada', amount: '$35.000', tone: 'violet' },
 ]
 
 export const prestations = [
-  { date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
-  { date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
-  { date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
-  { date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
-  { date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
-  { date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
+  { id: 1, date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
+  { id: 2, date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
+  { id: 3, date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
+  { id: 4, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
+  { id: 5, date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
+  { id: 6, date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
 ]
 
 export const opportunities = [
@@ -40,31 +40,31 @@ export const opportunities = [
 ]
 
 export const engagements = [
-  { name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo' },
-  { name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo' },
-  { name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo' },
-  { name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo' },
+  { id: 1, name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo' },
+  { id: 2, name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo' },
+  { id: 3, name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo' },
+  { id: 4, name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo' },
 ]
 
 export const activities = [
-  { title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente' },
-  { title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente' },
-  { title: 'Enviar propuesta de taller', relation: 'Fundación Norte · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
-  { title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente' },
-  { title: 'Seguimiento convenio', relation: 'Centro Armonía · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
+  { id: 1, title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente' },
+  { id: 2, title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente' },
+  { id: 3, title: 'Enviar propuesta de taller', relation: 'Fundación Norte · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
+  { id: 4, title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente' },
+  { id: 5, title: 'Seguimiento convenio', relation: 'Centro Armonía · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
 ]
 
 export const payments = [
-  { date: '17 Ago', account: 'Pedro González', amount: '$35.000', method: 'Transferencia', status: 'Pagado', allocations: '1 atención' },
-  { date: '14 Ago', account: 'Juan Soto', amount: '$15.000', method: 'Efectivo', status: 'Pagado', allocations: 'Pago parcial' },
-  { date: '10 Ago', account: 'María Pérez', amount: '$35.000', method: 'Transferencia', status: 'Pagado', allocations: '1 atención' },
-  { date: '08 Ago', account: 'Carolina Díaz', amount: '$45.000', method: 'Tarjeta', status: 'Pagado', allocations: 'Evaluación' },
-  { date: '03 Ago', account: 'María Pérez', amount: '$70.000', method: 'Transferencia', status: 'Pagado', allocations: '2 atenciones' },
+  { id: 1, date: '17 Ago', account: 'Pedro González', amount: '$35.000', method: 'Transferencia', status: 'Pagado', allocations: '1 atención' },
+  { id: 2, date: '14 Ago', account: 'Juan Soto', amount: '$15.000', method: 'Efectivo', status: 'Pagado', allocations: 'Pago parcial' },
+  { id: 3, date: '10 Ago', account: 'María Pérez', amount: '$35.000', method: 'Transferencia', status: 'Pagado', allocations: '1 atención' },
+  { id: 4, date: '08 Ago', account: 'Carolina Díaz', amount: '$45.000', method: 'Tarjeta', status: 'Pagado', allocations: 'Evaluación' },
+  { id: 5, date: '03 Ago', account: 'María Pérez', amount: '$70.000', method: 'Transferencia', status: 'Pagado', allocations: '2 atenciones' },
 ]
 
 export const services = [
-  { name: 'Sesión individual', description: 'Sesión de atención individual', duration: '60 min', price: '$35.000', active: true },
-  { name: 'Evaluación inicial', description: 'Evaluación y definición de objetivos', duration: '90 min', price: '$45.000', active: true },
-  { name: 'Control', description: 'Sesión breve de seguimiento', duration: '45 min', price: '$30.000', active: true },
-  { name: 'Taller grupal', description: 'Sesión para equipos u organizaciones', duration: '120 min', price: '$180.000', active: true },
+  { id: 1, name: 'Sesión individual', description: 'Sesión de atención individual', duration: '60 min', price: '$35.000', active: true },
+  { id: 2, name: 'Evaluación inicial', description: 'Evaluación y definición de objetivos', duration: '90 min', price: '$45.000', active: true },
+  { id: 3, name: 'Control', description: 'Sesión breve de seguimiento', duration: '45 min', price: '$30.000', active: true },
+  { id: 4, name: 'Taller grupal', description: 'Sesión para equipos u organizaciones', duration: '120 min', price: '$180.000', active: true },
 ]
