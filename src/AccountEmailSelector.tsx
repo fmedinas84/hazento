@@ -96,7 +96,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
   }
 
   return <div className="account-email-selector form-span">
-    <label><span>Email de{labels.account === 'Marca' ? ' la' : 'l'} {labels.account.toLowerCase()} *</span><div className="account-email-input"><Mail size={16}/><input
+    <label><span>Email del {labels.account.toLowerCase()} *</span><div className="account-email-input"><Mail size={16}/><input
       type={selected && !selected.email ? 'text' : 'email'}
       value={query}
       autoComplete="email"

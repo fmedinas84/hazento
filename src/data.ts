@@ -16,9 +16,9 @@ export const verticalLabels = {
     engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
   },
   creator: {
-    profession: 'Influencer', professionDescription: 'Marcas, partnerships y contenidos',
+    profession: 'Influencer', professionDescription: 'Contactos, empresas, partnerships y contenidos',
     account: 'Contacto', accounts: 'Contactos', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
-    peopleTab: 'Personas', organization: 'Marca', organizations: 'Marcas', createOrganization: 'Nueva marca',
+    peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo contacto', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
   },
