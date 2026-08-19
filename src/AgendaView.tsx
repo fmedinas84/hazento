@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Pencil, Plus, Search, X } from 'lucide-react'
 import type { ActivityData, EngagementData, PrestationData, Vertical } from './data'
 import { verticalLabels } from './data'
-import { buildCalendarEvents, buildTimelineRows, parsePlanningDate, timelineBounds, type CalendarEvent } from './planning'
+import { buildCalendarEvents, buildTimelineRows, parsePlanningDate, type CalendarEvent, type TimelineRow } from './planning'
 import { useRepositories } from './repositories'
 
 type Labels = typeof verticalLabels[Vertical]
@@ -14,6 +14,59 @@ const weekDays = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00']
 const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 const cls = (...values: Array<string | false | undefined>) => values.filter(Boolean).join(' ')
+const timelineDayWidth = 40
+const millisecondsPerDay = 86_400_000
+
+type TimelineDay = {
+  serial: number
+  timestamp: number
+  day: number
+  weekday: string
+  weekend: boolean
+  monday: boolean
+  today: boolean
+}
+
+type Milestone = TimelineRow['milestones'][number]
+
+function timelineDaySerial(timestamp: number) {
+  const date = new Date(timestamp)
+  return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / millisecondsPerDay)
+}
+
+function timelineTimestamp(serial: number) {
+  const utcDate = new Date(serial * millisecondsPerDay)
+  return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate(), 12).getTime()
+}
+
+function buildTimelineDays(rows: TimelineRow[]): TimelineDay[] {
+  if (!rows.length) return []
+  const firstSerial = Math.min(...rows.map(row => Math.min(timelineDaySerial(row.start), ...row.milestones.map(item => timelineDaySerial(item.timestamp)))))
+  const lastSerial = Math.max(...rows.map(row => Math.max(timelineDaySerial(row.end), ...row.milestones.map(item => timelineDaySerial(item.timestamp)))))
+  const todaySerial = timelineDaySerial(Date.now())
+  return Array.from({ length: lastSerial - firstSerial + 1 }, (_, index) => {
+    const serial = firstSerial + index
+    const timestamp = timelineTimestamp(serial)
+    const date = new Date(timestamp)
+    const weekdayIndex = date.getDay()
+    return { serial, timestamp, day: date.getDate(), weekday: ['Do','Lu','Ma','Mi','Ju','Vi','Sá'][weekdayIndex], weekend: weekdayIndex === 0 || weekdayIndex === 6, monday: weekdayIndex === 1, today: serial === todaySerial }
+  })
+}
+
+function groupMilestonesByDay(milestones: Milestone[]) {
+  const groups = new Map<number, Milestone[]>()
+  milestones.forEach(milestone => {
+    const serial = timelineDaySerial(milestone.timestamp)
+    groups.set(serial, [...(groups.get(serial) || []), milestone])
+  })
+  return [...groups.entries()].map(([serial, items]) => ({ serial, items }))
+}
+
+function milestoneState(items: Milestone[]) {
+  if (items.every(item => item.prestation.status === 'Completada')) return 'completada'
+  if (items.every(item => ['Cancelada', 'No asistió'].includes(item.prestation.status))) return 'cancelada'
+  return 'programada'
+}
 
 function formatDate(timestamp: number, includeTime = false) {
   return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}), timeZone: 'America/Santiago' }).format(new Date(timestamp)).replace('.', '')
@@ -96,13 +149,68 @@ function TimelinePanel({ labels, go, onSelectPrestation }: { labels: Labels; go:
   const [status, setStatus] = useState('Todos')
   const [query, setQuery] = useState('')
   const [editingDates, setEditingDates] = useState<number | null>(null)
+  const [milestoneGroup, setMilestoneGroup] = useState<Milestone[] | null>(null)
+  const timelineRef = useRef<HTMLElement>(null)
   const rows = useMemo(() => buildTimelineRows(repositories), [repositories])
   const filtered = rows.dated.filter(row => (status === 'Todos' || (status === 'Activos' ? row.engagement.status === 'Activo' : row.engagement.status === 'Completado')) && `${row.engagement.name} ${row.account?.name || row.engagement.account}`.toLowerCase().includes(query.toLowerCase()))
-  const bounds = timelineBounds(filtered)
-  const position = (timestamp: number) => `${Math.max(0, Math.min(100, (timestamp - bounds.start) / bounds.duration * 100))}%`
-  const ticks = bounds.start ? Array.from({ length: 7 }, (_, index) => bounds.start + bounds.duration * index / 6) : []
+  const days = buildTimelineDays(filtered)
+  const firstSerial = days[0]?.serial || 0
+  const timelineWidth = days.length * timelineDayWidth
+  const offsetFor = (timestamp: number) => (timelineDaySerial(timestamp) - firstSerial) * timelineDayWidth
+  const moveTimeline = (daysToMove: number) => timelineRef.current?.scrollBy({ left: daysToMove * timelineDayWidth, behavior: 'smooth' })
+  const moveToToday = () => {
+    const todayOffset = (timelineDaySerial(Date.now()) - firstSerial) * timelineDayWidth
+    timelineRef.current?.scrollTo({ left: Math.max(0, todayOffset - 280), behavior: 'smooth' })
+  }
   const editRecord = repositories.engagements.find(record => record.id === editingDates)
-  return <><div className="planning-toolbar card"><div className="tabs compact">{['Todos','Activos','Completados'].map(option => <button className={status === option ? 'active' : ''} onClick={() => setStatus(option)} key={option}>{option}</button>)}</div><label className="inline-search planning-search"><Search size={16}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={`Buscar ${labels.engagement.toLowerCase()} o ${labels.account.toLowerCase()}`}/></label></div>{filtered.length ? <section className="timeline-board card"><header><span>{labels.engagement}</span><div>{ticks.map(tick => <time style={{ left: position(tick) }} key={tick}>{formatDate(tick)}</time>)}</div></header>{filtered.map(row => <article className="timeline-work-row" key={row.engagement.id}><div className="timeline-work-label"><button onClick={() => go('engagement', { id: row.engagement.id })}><b>{row.engagement.name}</b><span>{labels.engagement} · {row.engagement.status}</span></button><button className="timeline-account-link" onClick={() => row.engagement.accountId && go('account', { id: row.engagement.accountId })}>{row.account?.name || row.engagement.account}</button><small>{formatDate(row.start)} → {formatDate(row.end)} · {row.progress}%</small>{row.milestones.some(item => item.outsideRange) && <em><AlertTriangle size={12}/>Hito fuera del período</em>}</div><div className="timeline-lane"><i className="timeline-guide"/><button className="timeline-engagement-bar" style={{ left: position(row.start), width: `max(30px, calc(${position(row.end)} - ${position(row.start)}))` }} onClick={() => go('engagement', { id: row.engagement.id })} title={`${row.engagement.name}: ${formatDate(row.start)} a ${formatDate(row.end)}`}><span>{row.progress}%</span></button>{row.milestones.map(({ prestation, timestamp, outsideRange }, index) => <button className={cls('timeline-milestone', prestation.status.toLowerCase().replaceAll(' ', '-'), outsideRange && 'outside')} style={{ left: position(timestamp), top: `${45 + index % 2 * 24}px` }} onClick={() => onSelectPrestation(prestation.id)} title={`${prestation.name} · ${formatDate(timestamp)}`} key={prestation.id}><i>◆</i><span>{prestation.name}</span></button>)}</div></article>)}</section> : <div className="planning-empty card"><Clock3 size={23}/><h3>Todavía no tienes {labels.engagements.toLowerCase()} con fechas definidas.</h3><p>Agrega fecha de inicio y término para visualizarlos aquí.</p><button className="secondary-btn" onClick={() => go('work')}>Ver {labels.engagements.toLowerCase()}</button></div>}{rows.undated.length > 0 && <section className="undated-work card"><div><span className="section-kicker">Sin fechas definidas</span><h3>{rows.undated.length} {labels.engagements.toLowerCase()} fuera del cronograma</h3></div>{rows.undated.map(record => <button onClick={() => setEditingDates(record.id)} key={record.id}><span><b>{record.name}</b><small>{record.account}</small></span>Definir fechas <ChevronRight size={15}/></button>)}</section>}{editRecord && <EngagementDatesDialog engagement={editRecord} labels={labels} onClose={() => setEditingDates(null)}/>}</>
+  return <>
+    <div className="planning-toolbar card">
+      <div className="tabs compact">{['Todos','Activos','Completados'].map(option => <button className={status === option ? 'active' : ''} onClick={() => setStatus(option)} key={option}>{option}</button>)}</div>
+      <div className="timeline-toolbar-actions">
+        <div className="timeline-navigation" aria-label="Navegar cronograma">
+          <button onClick={() => moveTimeline(-7)} aria-label="Retroceder una semana" title="Semana anterior"><ChevronLeft size={16}/></button>
+          <button onClick={moveToToday}>Hoy</button>
+          <button onClick={() => moveTimeline(7)} aria-label="Avanzar una semana" title="Semana siguiente"><ChevronRight size={16}/></button>
+        </div>
+        <label className="inline-search planning-search"><Search size={16}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={`Buscar ${labels.engagement.toLowerCase()} o ${labels.account.toLowerCase()}`}/></label>
+      </div>
+    </div>
+    {filtered.length ? <section className="timeline-board card" ref={timelineRef} aria-label={`Cronograma de ${labels.engagements.toLowerCase()}`}>
+      <div className="timeline-canvas" style={{ width: 245 + timelineWidth }}>
+        <header className="timeline-day-header">
+          <span className="timeline-sticky-cell">{labels.engagement}</span>
+          <div className="timeline-days" style={{ width: timelineWidth }}>
+            {days.map(day => <time className={cls('timeline-day', day.weekend && 'weekend', day.monday && 'week-start', day.today && 'today')} dateTime={new Date(day.timestamp).toISOString()} key={day.serial}><b>{day.day}</b><span>{day.weekday}</span></time>)}
+          </div>
+        </header>
+        {filtered.map(row => {
+          const milestoneGroups = groupMilestonesByDay(row.milestones)
+          const barLeft = offsetFor(row.start)
+          const barWidth = (timelineDaySerial(row.end) - timelineDaySerial(row.start) + 1) * timelineDayWidth
+          return <article className="timeline-work-row" key={row.engagement.id}>
+            <div className="timeline-work-label timeline-sticky-cell">
+              <button onClick={() => go('engagement', { id: row.engagement.id })}><b>{row.engagement.name}</b><span>{labels.engagement} · {row.engagement.status}</span></button>
+              <button className="timeline-account-link" onClick={() => row.engagement.accountId && go('account', { id: row.engagement.accountId })}>{row.account?.name || row.engagement.account}</button>
+              <small>{formatDate(row.start)} → {formatDate(row.end)} · {row.progress}%</small>
+              {row.milestones.some(item => item.outsideRange) ? <em><AlertTriangle size={12}/>Hito fuera del período</em> : null}
+            </div>
+            <div className="timeline-lane" style={{ width: timelineWidth }}>
+              <div className="timeline-grid" aria-hidden="true">{days.map(day => <i className={cls(day.weekend && 'weekend', day.monday && 'week-start', day.today && 'today')} key={day.serial}/>)}</div>
+              <button className="timeline-engagement-bar" style={{ left: barLeft, width: barWidth }} onClick={() => go('engagement', { id: row.engagement.id })} title={`${row.engagement.name}: ${formatDate(row.start)} a ${formatDate(row.end)}`} aria-label={`Abrir ${row.engagement.name}, ${formatDate(row.start)} a ${formatDate(row.end)}`}><span>{row.progress}%</span></button>
+              {milestoneGroups.map(group => {
+                const outsideRange = group.items.some(item => item.outsideRange)
+                const tooltip = group.items.map(item => `${item.prestation.name} · ${formatDate(item.timestamp)} · ${item.prestation.status}${item.outsideRange ? ' · Fuera del período' : ''}`).join('\n')
+                return <button className={cls('timeline-milestone', milestoneState(group.items), outsideRange && 'outside')} style={{ left: offsetFor(group.items[0].timestamp) + timelineDayWidth / 2 }} onClick={() => group.items.length === 1 ? onSelectPrestation(group.items[0].prestation.id) : setMilestoneGroup(group.items)} title={tooltip} aria-label={group.items.length === 1 ? tooltip : `${group.items.length} ${labels.prestations.toLowerCase()} el ${formatDate(group.items[0].timestamp)}`} key={group.serial}><span>{group.items.length > 1 ? group.items.length : '◆'}</span></button>
+              })}
+            </div>
+          </article>
+        })}
+      </div>
+    </section> : <div className="planning-empty card"><Clock3 size={23}/><h3>Todavía no tienes {labels.engagements.toLowerCase()} con fechas definidas.</h3><p>Agrega fecha de inicio y término para visualizarlos aquí.</p><button className="secondary-btn" onClick={() => go('work')}>Ver {labels.engagements.toLowerCase()}</button></div>}
+    {rows.undated.length > 0 && <section className="undated-work card"><div><span className="section-kicker">Sin fechas definidas</span><h3>{rows.undated.length} {labels.engagements.toLowerCase()} fuera del cronograma</h3></div>{rows.undated.map(record => <button onClick={() => setEditingDates(record.id)} key={record.id}><span><b>{record.name}</b><small>{record.account}</small></span>Definir fechas <ChevronRight size={15}/></button>)}</section>}
+    {milestoneGroup && <Dialog title={`${milestoneGroup.length} ${labels.prestations.toLowerCase()}`} subtitle={formatDate(milestoneGroup[0].timestamp)} onClose={() => setMilestoneGroup(null)}><div className="timeline-group-list">{milestoneGroup.map(item => <button onClick={() => { setMilestoneGroup(null); onSelectPrestation(item.prestation.id) }} key={item.prestation.id}><span><b>{item.prestation.name}</b><small>{item.prestation.status}</small></span><ChevronRight size={16}/></button>)}</div></Dialog>}
+    {editRecord && <EngagementDatesDialog engagement={editRecord} labels={labels} onClose={() => setEditingDates(null)}/>}
+  </>
 }
 
 export function AgendaView({ labels, go, onCreate }: { labels: Labels; go: Navigate; onCreate: () => void }) {
