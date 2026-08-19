@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Activity, Bell, BriefcaseBusiness, CalendarDays, Check, ChevronDown, ChevronLeft,
   ChevronRight, CircleDollarSign, Clock3, CreditCard, Ellipsis, FileCheck2, Grid2X2,
-  HeartPulse, LayoutDashboard, ListChecks, Menu, MoreHorizontal, Plus, Search, Settings,
+  HeartPulse, LayoutDashboard, ListChecks, Menu, MoreHorizontal, Pencil, Plus, Search, Settings,
   Sparkles, Target, UserRound, UsersRound, WalletCards, X, Zap,
 } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -28,6 +28,12 @@ const formatScheduledDate = (isoDate: string, time: string) => {
   const [, month, day] = isoDate.split('-').map(Number)
   const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   return `${day} ${months[month - 1] || 'Ago'} · ${time}`
+}
+
+const parseScheduledDate = (value: string) => {
+  const match = value.match(/^(\d{1,2}) ([A-ZÁÉÍÓÚ][a-záéíóú]{2}) · (\d{2}):(\d{2})$/)
+  const months: Record<string, string> = { Ene: '01', Feb: '02', Mar: '03', Abr: '04', May: '05', Jun: '06', Jul: '07', Ago: '08', Sep: '09', Oct: '10', Nov: '11', Dic: '12' }
+  return match && months[match[2]] ? { date: `2026-${months[match[2]]}-${match[1].padStart(2, '0')}`, time: `${match[3]}:${match[4]}` } : { date: '2026-08-17', time: '09:00' }
 }
 const trend = [
   { month: 'Mar', income: 2140, pending: 410 }, { month: 'Abr', income: 2680, pending: 520 },
@@ -95,6 +101,47 @@ function Modal({ title, subtitle, onClose, children, wide }: { title: string; su
   </section></div>
 }
 
+type EditablePrestation = {
+  id: number
+  name: string
+  account: string
+  date: string
+  status: string
+  amount: string
+  payment: string
+}
+
+function PrestationDetailModal({ record, labels, onClose }: { record: EditablePrestation; labels: Labels; onClose: () => void }) {
+  const repositories = useRepositories()
+  const [editing, setEditing] = useState(false)
+  const scheduled = parseScheduledDate(record.date)
+
+  const save = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries())
+    repositories.updatePrestation(record.id, {
+      name: String(values.name || '').trim(),
+      date: formatScheduledDate(String(values.date), String(values.time)),
+    })
+    setEditing(false)
+  }
+
+  return <Modal title={editing ? `Editar ${labels.prestation.toLowerCase()}` : record.name} subtitle={`${record.account} · ${record.date}`} onClose={onClose}>
+    {editing ? <form onSubmit={save}>
+      <div className="form-grid single">
+        <label><span>Nombre *</span><input name="name" required autoFocus defaultValue={record.name}/></label>
+        <label><span>Fecha *</span><input name="date" type="date" required defaultValue={scheduled.date}/></label>
+        <label><span>Hora *</span><input name="time" type="time" required defaultValue={scheduled.time}/></label>
+      </div>
+      <footer className="modal-actions"><button type="button" className="ghost-btn" onClick={() => setEditing(false)}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer>
+    </form> : <>
+      <div className="record-summary"><p><span>Estado</span><StatusBadge>{record.status}</StatusBadge></p><p><span>Monto</span><b>{record.amount}</b></p><p><span>Pago</span><StatusBadge>{record.payment}</StatusBadge></p></div>
+      <div className="status-actions"><button onClick={() => repositories.updatePrestation(record.id, { status: 'Completada' })}><Check size={16}/>Completar</button><button onClick={() => repositories.updatePrestation(record.id, { status: 'No asistió' })}>No asistió</button><button onClick={() => repositories.updatePrestation(record.id, { status: 'Cancelada' })}>Cancelar</button></div>
+      <footer className="modal-actions"><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar nombre y fecha</button><button className="primary-btn" onClick={onClose}>Listo</button></footer>
+    </>}
+  </Modal>
+}
+
 function CreateForm({ type, labels, onDone }: { type: string; labels: typeof verticalLabels[Vertical]; onDone: () => void }) {
   const store = useRepositories()
   const lower = type.toLowerCase()
@@ -108,7 +155,9 @@ function CreateForm({ type, labels, onDone }: { type: string; labels: typeof ver
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const values = Object.fromEntries(new FormData(event.currentTarget).entries())
-    const name = String(values.name || '').trim()
+    const firstName = String(values.firstName || '').trim()
+    const lastName = String(values.lastName || '').trim()
+    const name = mode === 'account' ? [firstName, lastName].filter(Boolean).join(' ') : String(values.name || '').trim()
     if (mode === 'account') {
       store.addAccount({ name, type: String(values.accountType || 'Persona'), status: 'Prospecto', last: 'Ahora', next: '—', income: '$0', pending: '$0', email: String(values.email || ''), phone: String(values.phone || ''), rut: String(values.rut || '') })
     } else if (mode === 'opportunity') {
@@ -136,7 +185,7 @@ function CreateForm({ type, labels, onDone }: { type: string; labels: typeof ver
   return <form onSubmit={submit}>
     <div className="form-grid">
       {mode !== 'account' && mode !== 'service' && <label><span>{labels.account} *</span><select required value={accountName} onChange={event => setAccountName(event.target.value)}>{store.accounts.map(account => <option key={account.id}>{account.name}</option>)}</select></label>}
-      {mode === 'account' && <><label><span>Nombre *</span><input name="name" required autoFocus placeholder={`Nombre del ${labels.account.toLowerCase()}`} /></label><label><span>Tipo</span><select name="accountType"><option>Persona</option><option>Empresa</option><option>Marca</option></select></label><label><span>Email</span><input name="email" type="email" /></label><label><span>Teléfono</span><input name="phone" /></label><label><span>RUT</span><input name="rut" /></label></>}
+      {mode === 'account' && <><label><span>Nombre *</span><input name="firstName" required autoFocus autoComplete="given-name" placeholder="Nombre" /></label><label><span>Apellido</span><input name="lastName" autoComplete="family-name" placeholder="Apellido" /></label><label><span>Tipo</span><select name="accountType"><option>Persona</option><option>Empresa</option><option>Marca</option></select></label><label><span>Email</span><input name="email" type="email" autoComplete="email" /></label><label><span>Teléfono</span><input name="phone" autoComplete="tel" /></label><label><span>RUT</span><input name="rut" /></label></>}
       {mode === 'opportunity' && <><label><span>Oportunidad *</span><input name="name" required autoFocus placeholder="Ej. Plan de 8 sesiones" /></label><label><span>Monto estimado</span><input name="amount" placeholder="$0" /></label><label><span>Cierre estimado</span><input name="date" type="date" defaultValue="2026-08-30" /></label><label><span>Etapa</span><select name="stage"><option>Nuevo</option><option>Contactado</option><option>Propuesta</option><option>Negociación</option></select></label></>}
       {mode === 'engagement' && <><label><span>Nombre *</span><input name="name" required autoFocus placeholder={`Nombre del ${labels.engagement.toLowerCase()}`} /></label><label><span>Monto acordado</span><input name="amount" placeholder="$0" /></label><label><span>Modalidad</span><select name="billing"><option>Puntual</option><option>Recurrente</option></select></label><label><span>Inicio</span><input name="date" type="date" defaultValue="2026-08-17" /></label></>}
       {mode === 'prestation' && <><label><span>{labels.service}</span><select value={serviceId} onChange={event => setServiceId(Number(event.target.value))}>{store.services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Hora</span><input name="time" type="time" defaultValue="09:00" /></label><label><span>Duración sugerida</span><input disabled value={selectedService?.duration || '—'} /></label><label><span>Precio sugerido</span><input disabled value={selectedService?.price || '$0'} /></label><label><span>Origen</span><select name="origin"><option>Directa</option><option>{labels.engagement}</option></select></label></>}
@@ -257,7 +306,7 @@ function EngagementDetail({ labels, go, onCreate }: { labels: typeof verticalLab
 function PrestationsPage({ labels, onCreate }: { labels: typeof verticalLabels[Vertical]; onCreate:()=>void }) {
   const store=useRepositories(); const params=new URLSearchParams(window.location.search); const requested=params.get('status'); const [active,setActive]=useState(requested==='Pendientes'?'Pendientes':requested==='Completada'?'Realizadas':'Todas'); const [selected,setSelected]=useState<number|null>(Number(params.get('id'))||null); const [search,setSearch]=useState('')
   const visible=store.prestations.filter(item=>{const matches=(`${item.account} ${item.name}`).toLowerCase().includes(search.toLowerCase());if(!matches)return false;if(active==='Pendientes')return item.payment!=='Pagado';if(active==='Realizadas')return item.status==='Completada';if(active==='Canceladas')return ['Cancelada','No asistió'].includes(item.status);if(active==='Hoy')return item.date.startsWith('17 Ago');return true}); const current=store.prestations.find(item=>item.id===selected)
-  return <><PageHeader title={labels.prestations} description={`Revisa todas las ${labels.prestations.toLowerCase()} realizadas o programadas para tus ${labels.accounts.toLowerCase()}.`} action={newPrestationLabel(labels)} onAction={onCreate}/><div className="toolbar card"><div className="tabs">{['Todas','Hoy','Pendientes','Realizadas','Canceladas'].map(tab=><button className={active===tab?'active':''} onClick={()=>setActive(tab)} key={tab}>{tab}</button>)}</div><label className="inline-search"><Search size={16}/><input aria-label={`Buscar ${labels.prestations.toLowerCase()}`} value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar..."/></label></div>{visible.length?<div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>{labels.prestation}</th><th>Origen</th><th>Estado</th><th>Monto</th><th>Pago</th><th></th></tr></thead><tbody>{visible.map(p=><tr className="clickable-row" onClick={()=>setSelected(p.id)} key={p.id}><td><b>{p.date}</b></td><td>{p.account}</td><td>{p.name}</td><td>{p.origin}</td><td><StatusBadge>{p.status}</StatusBadge></td><td className="number">{p.amount}</td><td><StatusBadge>{p.payment}</StatusBadge></td><td><ChevronRight size={17}/></td></tr>)}</tbody></table></div>:<EmptyState title={`No hay ${labels.prestations.toLowerCase()} en esta vista`} body="Prueba otro filtro o registra una nueva unidad de servicio." action={newPrestationLabel(labels)} onAction={onCreate}/>} {current&&<Modal title={current.name} subtitle={`${current.account} · ${current.date}`} onClose={()=>setSelected(null)}><div className="record-summary"><p><span>Estado</span><StatusBadge>{current.status}</StatusBadge></p><p><span>Monto</span><b>{current.amount}</b></p><p><span>Pago</span><StatusBadge>{current.payment}</StatusBadge></p></div><div className="status-actions"><button onClick={()=>store.updatePrestation(current.id,{status:'Completada'})}><Check size={16}/>Completar</button><button onClick={()=>store.updatePrestation(current.id,{status:'No asistió'})}>No asistió</button><button onClick={()=>store.updatePrestation(current.id,{status:'Cancelada'})}>Cancelar</button></div><footer className="modal-actions"><button className="primary-btn" onClick={()=>setSelected(null)}>Listo</button></footer></Modal>}</>
+  return <><PageHeader title={labels.prestations} description={`Revisa todas las ${labels.prestations.toLowerCase()} realizadas o programadas para tus ${labels.accounts.toLowerCase()}.`} action={newPrestationLabel(labels)} onAction={onCreate}/><div className="toolbar card"><div className="tabs">{['Todas','Hoy','Pendientes','Realizadas','Canceladas'].map(tab=><button className={active===tab?'active':''} onClick={()=>setActive(tab)} key={tab}>{tab}</button>)}</div><label className="inline-search"><Search size={16}/><input aria-label={`Buscar ${labels.prestations.toLowerCase()}`} value={search} onChange={event=>setSearch(event.target.value)} placeholder="Buscar..."/></label></div>{visible.length?<div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>{labels.prestation}</th><th>Origen</th><th>Estado</th><th>Monto</th><th>Pago</th><th></th></tr></thead><tbody>{visible.map(p=><tr className="clickable-row" onClick={()=>setSelected(p.id)} key={p.id}><td><b>{p.date}</b></td><td>{p.account}</td><td>{p.name}</td><td>{p.origin}</td><td><StatusBadge>{p.status}</StatusBadge></td><td className="number">{p.amount}</td><td><StatusBadge>{p.payment}</StatusBadge></td><td><ChevronRight size={17}/></td></tr>)}</tbody></table></div>:<EmptyState title={`No hay ${labels.prestations.toLowerCase()} en esta vista`} body="Prueba otro filtro o registra una nueva unidad de servicio." action={newPrestationLabel(labels)} onAction={onCreate}/>} {current&&<PrestationDetailModal record={current} labels={labels} onClose={()=>setSelected(null)}/>}</>
 }
 
 function FilterBar({ tabs }: { tabs:string[] }) { const [active,setActive]=useState(tabs[0]); return <div className="toolbar card"><div className="tabs">{tabs.map(t=><button className={active===t?'active':''} onClick={()=>setActive(t)} key={t}>{t}</button>)}</div><div className="toolbar-actions"><button className="secondary-btn"><ListChecks size={16}/>Filtros</button><button className="secondary-btn"><Search size={16}/></button></div></div> }
@@ -267,30 +316,37 @@ function AgendaPage({ labels, onCreate }: { labels: typeof verticalLabels[Vertic
   return <><PageHeader title="Agenda" description={`Revisa tus ${labels.prestations.toLowerCase()}, reuniones, tareas e hitos en un solo lugar.`} action="Nuevo" onAction={onCreate}/><div className="calendar-toolbar card"><div><button aria-label="Periodo anterior" className="icon-btn" onClick={()=>setOffset(value=>value-1)}><ChevronLeft size={17}/></button><button aria-label="Periodo siguiente" className="icon-btn" onClick={()=>setOffset(value=>value+1)}><ChevronRight size={17}/></button><button className="secondary-btn" onClick={()=>setOffset(0)}>Hoy</button><h2>{view==='Mes'?'Agosto 2026':view==='Día'?'Lunes 17 agosto 2026':range}</h2></div><div className="tabs">{['Día','Semana','Mes'].map(item=><button className={view===item?'active':''} onClick={()=>setView(item)} key={item}>{item}</button>)}</div></div>{offset===0?<div className={cls('calendar card',`calendar-${view.toLowerCase()}`)}><div className="calendar-head"><span/><span className="today">Lun<b>17</b></span>{view!=='Día'&&days.slice(1).map(d=><span key={d}>{d.split(' ')[0]}<b>{d.split(' ')[1]}</b></span>)}</div><div className="calendar-body"><div className="time-column">{hours.map(h=><span key={h}>{h}</span>)}</div>{days.slice(0,view==='Día'?1:5).map((d,di)=><div className="day-column" key={d}>{hours.map(h=><i key={h}/>) }{di===0&&<><button className="cal-event violet" style={{top:52,height:78}} onClick={()=>setSelected(1)}><b>09:00</b><span>María Pérez</span><small>Sesión individual</small></button><button className="cal-event orange" style={{top:132,height:100}} onClick={()=>setSelected(2)}><b>10:30</b><span>Carolina Díaz</span><small>Evaluación inicial</small></button><button className="cal-event blue" style={{top:258,height:52}} onClick={()=>onCreate()}><b>12:00</b><span>Llamada Daniela</span></button><button className="cal-event violet" style={{top:442,height:78}} onClick={()=>setSelected(3)}><b>15:00</b><span>Pedro González</span><small>Sesión individual</small></button></>}</div>)}</div></div>:<EmptyState title="Sin compromisos en este periodo" body="Vuelve a hoy o crea una prestación o actividad para este periodo." action="Volver a hoy" onAction={()=>setOffset(0)}/>} {current&&<Modal title={current.name} subtitle={`${current.account} · ${current.date}`} onClose={()=>setSelected(null)}><div className="record-summary"><p><span>Estado</span><StatusBadge>{current.status}</StatusBadge></p><p><span>Monto</span><b>{current.amount}</b></p><p><span>Pago</span><StatusBadge>{current.payment}</StatusBadge></p></div><div className="status-actions"><button onClick={()=>store.updatePrestation(current.id,{status:'Completada'})}><Check size={16}/>Marcar realizada</button><button onClick={()=>store.updatePrestation(current.id,{status:'No asistió'})}>No asistió</button><button onClick={()=>store.updatePrestation(current.id,{status:'Cancelada'})}>Cancelar</button></div></Modal>}</>
 }
 
+type AgendaView = 'Día' | 'Semana' | 'Mes' | 'Gantt'
+
 function RepositoryAgendaPage({ labels, onCreate }: { labels: Labels; onCreate: () => void }) {
   const repositories = useRepositories()
-  const days = ['Lun 17','Mar 18','Mié 19','Jue 20','Vie 21']
+  const days = [{ label: 'Lun', day: 17 }, { label: 'Mar', day: 18 }, { label: 'Mié', day: 19 }, { label: 'Jue', day: 20 }, { label: 'Vie', day: 21 }, { label: 'Sáb', day: 22 }, { label: 'Dom', day: 23 }]
   const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-  const [view, setView] = useState('Semana')
+  const views: AgendaView[] = ['Día','Semana','Mes','Gantt']
+  const [view, setView] = useState<AgendaView>(labels.defaultAgendaView)
   const [offset, setOffset] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const current = repositories.prestations.find(item => item.id === selected)
-  const events = repositories.prestations.flatMap(item => {
+  const scheduledItems = repositories.prestations.flatMap(item => {
     const match = item.date.match(/^(\d{1,2}) Ago · (\d{2}):(\d{2})$/)
     if (!match) return []
     const dayIndex = Number(match[1]) - 17
+    if (dayIndex < 0 || dayIndex > 6) return []
     const minute = Number(match[2]) * 60 + Number(match[3])
-    if (dayIndex < 0 || dayIndex > 4 || minute < 480 || minute > 1020) return []
     const service = repositories.services.find(candidate => candidate.name === item.name)
     const duration = Number(service?.duration.match(/\d+/)?.[0] || 60)
-    return [{ item, dayIndex, top: ((minute - 480) / 60) * 52, height: Math.max(48, duration / 60 * 52) }]
+    return [{ item, dayIndex, minute, top: ((minute - 480) / 60) * 52, height: Math.max(48, duration / 60 * 52) }]
   })
+  const calendarEvents = scheduledItems.filter(event => event.dayIndex < 5 && event.minute >= 480 && event.minute <= 1020)
+  const periodTitle = view === 'Mes' ? 'Agosto 2026' : view === 'Día' ? 'Lunes 17 agosto 2026' : view === 'Gantt' ? '17–23 agosto 2026' : '17–21 agosto 2026'
 
   return <>
     <PageHeader title="Agenda" description={`Toda ${labels.prestation.toLowerCase()} programada aparece aquí automáticamente.`} action="Nuevo" onAction={onCreate}/>
-    <div className="calendar-toolbar card"><div><button aria-label="Periodo anterior" className="icon-btn" onClick={() => setOffset(value => value - 1)}><ChevronLeft size={17}/></button><button aria-label="Periodo siguiente" className="icon-btn" onClick={() => setOffset(value => value + 1)}><ChevronRight size={17}/></button><button className="secondary-btn" onClick={() => setOffset(0)}>Hoy</button><h2>{view === 'Mes' ? 'Agosto 2026' : view === 'Día' ? 'Lunes 17 agosto 2026' : '17–21 agosto 2026'}</h2></div><div className="tabs">{['Día','Semana','Mes'].map(item => <button className={view === item ? 'active' : ''} onClick={() => setView(item)} key={item}>{item}</button>)}</div></div>
-    {offset === 0 ? <div className={cls('calendar card', `calendar-${view.toLowerCase()}`)}><div className="calendar-head"><span/><span className="today">Lun<b>17</b></span>{view !== 'Día' && days.slice(1).map(day => <span key={day}>{day.split(' ')[0]}<b>{day.split(' ')[1]}</b></span>)}</div><div className="calendar-body"><div className="time-column">{hours.map(hour => <span key={hour}>{hour}</span>)}</div>{days.slice(0, view === 'Día' ? 1 : 5).map((day, dayIndex) => <div className="day-column" key={day}>{hours.map(hour => <i key={hour}/>)}{events.filter(event => event.dayIndex === dayIndex).map(({ item, top, height }) => <button className="cal-event violet" style={{ top, height }} onClick={() => setSelected(item.id)} key={item.id}><b>{item.date.split(' · ')[1]}</b><span>{item.account}</span><small>{item.name}</small></button>)}</div>)}</div></div> : <EmptyState title="Sin compromisos en este periodo" body="Vuelve a hoy o crea una prestación para este periodo." action="Volver a hoy" onAction={() => setOffset(0)}/>}
-    {current && <Modal title={current.name} subtitle={`${current.account} · ${current.date}`} onClose={() => setSelected(null)}><div className="record-summary"><p><span>Estado</span><StatusBadge>{current.status}</StatusBadge></p><p><span>Monto</span><b>{current.amount}</b></p><p><span>Pago</span><StatusBadge>{current.payment}</StatusBadge></p></div><div className="status-actions"><button onClick={() => repositories.updatePrestation(current.id, { status: 'Completada' })}><Check size={16}/>Marcar realizada</button><button onClick={() => repositories.updatePrestation(current.id, { status: 'No asistió' })}>No asistió</button><button onClick={() => repositories.updatePrestation(current.id, { status: 'Cancelada' })}>Cancelar</button></div></Modal>}
+    <div className="calendar-toolbar card"><div><button aria-label="Periodo anterior" className="icon-btn" onClick={() => setOffset(value => value - 1)}><ChevronLeft size={17}/></button><button aria-label="Periodo siguiente" className="icon-btn" onClick={() => setOffset(value => value + 1)}><ChevronRight size={17}/></button><button className="secondary-btn" onClick={() => setOffset(0)}>Hoy</button><h2>{periodTitle}</h2></div><div className="tabs">{views.map(item => <button className={view === item ? 'active' : ''} onClick={() => setView(item)} key={item}>{item}</button>)}</div></div>
+    {offset === 0 && view === 'Gantt' && (scheduledItems.length ? <div className="gantt card"><div className="gantt-grid gantt-header"><span>{labels.prestations}</span>{days.map(day => <span className={day.day === 18 ? 'today' : ''} key={day.day}>{day.label}<b>{day.day}</b></span>)}</div><div className="gantt-body">{scheduledItems.map(({ item, dayIndex }) => <div className="gantt-grid gantt-row" key={item.id}><button className="gantt-label" onClick={() => setSelected(item.id)}><b>{item.name}</b><span>{item.account} · {item.status}</span></button>{days.map((day, index) => <div className={cls('gantt-cell', day.day === 18 && 'today')} key={day.day}>{index === dayIndex && <button className="gantt-task" onClick={() => setSelected(item.id)} aria-label={`Editar ${item.name}, ${item.date}`}><span>{item.date.split(' · ')[1]}</span></button>}</div>)}</div>)}</div></div> : <EmptyState title={`Sin ${labels.prestations.toLowerCase()} esta semana`} body="Crea un registro con fecha para visualizarlo en la planificación." action={newPrestationLabel(labels)} onAction={onCreate}/>) }
+    {offset === 0 && view !== 'Gantt' && <div className={cls('calendar card', `calendar-${view.toLowerCase()}`)}><div className="calendar-head"><span/><span className="today">Lun<b>17</b></span>{view !== 'Día' && days.slice(1, 5).map(day => <span key={day.day}>{day.label}<b>{day.day}</b></span>)}</div><div className="calendar-body"><div className="time-column">{hours.map(hour => <span key={hour}>{hour}</span>)}</div>{days.slice(0, view === 'Día' ? 1 : 5).map((day, dayIndex) => <div className="day-column" key={day.day}>{hours.map(hour => <i key={hour}/>)}{calendarEvents.filter(event => event.dayIndex === dayIndex).map(({ item, top, height }) => <button className="cal-event violet" style={{ top, height }} onClick={() => setSelected(item.id)} key={item.id}><b>{item.date.split(' · ')[1]}</b><span>{item.account}</span><small>{item.name}</small></button>)}</div>)}</div></div>}
+    {offset !== 0 && <EmptyState title="Sin compromisos en este periodo" body="Vuelve a hoy o crea una prestación para este periodo." action="Volver a hoy" onAction={() => setOffset(0)}/>}
+    {current && <PrestationDetailModal record={current} labels={labels} onClose={() => setSelected(null)}/>}
   </>
 }
 
