@@ -4,31 +4,31 @@ export const verticalLabels = {
   health: {
     profession: 'Salud', professionDescription: 'Pacientes, tratamientos y atenciones',
     account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', navigationPrestation: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención',
-    createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana', supportsFollowUp: true,
+    createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana', supportsFollowUp: true, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
     engagementDescription: 'Organiza tratamientos o planes de atención y revisa el avance de sus sesiones.',
   },
   creative: {
     profession: 'Diseñador', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false,
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
   },
   creator: {
     profession: 'Influencer', professionDescription: 'Marcas, partnerships y contenidos',
     account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false,
+    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
   },
   sessions: {
     profession: 'Profesor', professionDescription: 'Alumnos, planes y clases',
     account: 'Alumno', accounts: 'Alumnos', engagement: 'Plan', engagements: 'Planes', prestation: 'Clase', prestations: 'Clases', navigationPrestation: 'Clases', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana', supportsFollowUp: false,
+    createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
     engagementDescription: 'Organiza los planes de tus alumnos y revisa clases, avance y pagos.',
   },
   other: {
     profession: 'Otras actividades', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Gantt', supportsFollowUp: false,
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Organiza tus proyectos y revisa entregas, avance y cobros.',
   },
 } as const
@@ -92,6 +92,8 @@ export type EngagementData = {
   detail: string
   amount: string
   status: string
+  startDate?: string
+  endDate?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -177,6 +179,7 @@ export const prestations: PrestationData[] = [
   { id: 10, accountId: 4, engagementId: 2, date: '21 Ago · 10:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
   { id: 11, accountId: 3, engagementId: 4, date: '08 Ago · 12:00', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Plan', status: 'Completada', amount: '$45.000', payment: 'Pagado' },
   { id: 12, accountId: 1, engagementId: 1, date: '03 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
+  { id: 13, accountId: 1, engagementId: 1, serviceId: 1, date: '26 Ago · 09:00', account: 'María Pérez', name: 'Sesión de continuidad', description: 'Próxima atención del tratamiento activo.', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
 ]
 
 export const opportunities: OpportunityData[] = [
@@ -188,9 +191,9 @@ export const opportunities: OpportunityData[] = [
 ]
 
 export const engagements: EngagementData[] = [
-  { id: 1, accountId: 1, name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo', createdAt: '2026-07-20T10:00:00-04:00', updatedAt: '2026-08-17T10:00:00-04:00' },
-  { id: 2, accountId: 4, opportunityId: 4, name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo', createdAt: '2026-08-01T10:00:00-04:00', updatedAt: '2026-08-17T15:30:00-04:00' },
-  { id: 3, accountId: 2, opportunityId: 2, name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo', createdAt: '2026-08-05T09:00:00-04:00', updatedAt: '2026-08-18T09:45:00-04:00' },
+  { id: 1, accountId: 1, name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo', startDate: '2026-08-05', endDate: '2026-08-26', createdAt: '2026-07-20T10:00:00-04:00', updatedAt: '2026-08-17T10:00:00-04:00' },
+  { id: 2, accountId: 4, opportunityId: 4, name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo', startDate: '2026-08-18', endDate: '2026-09-30', createdAt: '2026-08-01T10:00:00-04:00', updatedAt: '2026-08-17T15:30:00-04:00' },
+  { id: 3, accountId: 2, opportunityId: 2, name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo', startDate: '2026-08-18', endDate: '2026-09-15', createdAt: '2026-08-05T09:00:00-04:00', updatedAt: '2026-08-18T09:45:00-04:00' },
   { id: 4, accountId: 3, opportunityId: 3, name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo', createdAt: '2026-08-08T12:00:00-04:00', updatedAt: '2026-08-17T11:00:00-04:00' },
 ]
 
