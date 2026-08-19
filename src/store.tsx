@@ -83,7 +83,11 @@ function migrateDemoState(saved: DemoState): DemoState {
     contacts: saved.contacts ?? seedContacts,
     opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account) })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
-    prestations: saved.prestations.map(prestation => ({ ...prestation, accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0 })),
+    prestations: saved.prestations.map(prestation => ({
+      ...prestation,
+      accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0,
+      serviceId: prestation.serviceId ?? seedServices.find(service => service.name === prestation.name)?.id,
+    })),
     activities: saved.activities.map(activity => ({ ...activity, accountId: activity.accountId ?? accountIdFor(activity.relation.split(' · ')[0]) })),
     payments: saved.payments.map(payment => ({ ...payment, accountId: payment.accountId ?? accountIdFor(payment.account) })),
   }

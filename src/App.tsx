@@ -9,6 +9,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Vertical, verticalLabels, verticalOptions } from './data'
 import { AccountEmailSelector } from './AccountEmailSelector'
 import { Account360View } from './Account360View'
+import { AgendaView as FunctionalAgendaView } from './AgendaView'
 import { findAccountByEmail, normalizeEmail } from './accountEmail'
 import { formatMoney, parseMoney, useRepositories } from './repositories'
 
@@ -114,7 +115,9 @@ function Modal({ title, subtitle, onClose, children, wide }: { title: string; su
 type EditablePrestation = {
   id: number
   accountId: number
+  serviceId?: number
   name: string
+  description?: string
   account: string
   date: string
   status: string
@@ -133,6 +136,8 @@ function PrestationDetailModal({ record, labels, onClose }: { record: EditablePr
     const values = Object.fromEntries(new FormData(event.currentTarget).entries())
     repositories.updatePrestation(record.id, {
       name: String(values.name || '').trim(),
+      description: String(values.description || '').trim(),
+      serviceId: Number(values.serviceId) || undefined,
       date: formatScheduledDate(String(values.date), String(values.time)),
       ...(labels.supportsFollowUp ? { followUpNote: String(values.followUpNote || '').trim() } : {}),
     })
@@ -143,13 +148,16 @@ function PrestationDetailModal({ record, labels, onClose }: { record: EditablePr
     {editing ? <form onSubmit={save}>
       <div className="form-grid single">
         <label><span>Nombre *</span><input name="name" required autoFocus defaultValue={record.name}/></label>
+        <label><span>Tipo ({labels.service.toLowerCase()})</span><select name="serviceId" defaultValue={record.serviceId || ''}><option value="">Sin tipo</option>{repositories.services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label>
         <label><span>Fecha *</span><input name="date" type="date" required defaultValue={scheduled.date}/></label>
         <label><span>Hora *</span><input name="time" type="time" required defaultValue={scheduled.time}/></label>
+        <label className="form-span"><span>Descripción</span><textarea name="description" rows={4} defaultValue={record.description || ''} placeholder={`Describe brevemente este ${labels.prestation.toLowerCase()}.`}/></label>
         {labels.supportsFollowUp && <label className="form-span"><span>Seguimiento</span><textarea name="followUpNote" rows={4} defaultValue={record.followUpNote || ''} placeholder="Registra una nota operativa breve sobre esta atención."/></label>}
       </div>
       <footer className="modal-actions"><button type="button" className="ghost-btn" onClick={() => setEditing(false)}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer>
     </form> : <>
-      <div className="record-summary"><p><span>Estado</span><StatusBadge>{record.status}</StatusBadge></p><p><span>Monto</span><b>{record.amount}</b></p><p><span>Pago</span><StatusBadge>{record.payment}</StatusBadge></p></div>
+      <div className="record-summary"><p><span>Tipo</span><b>{repositories.services.find(service => service.id === record.serviceId)?.name || 'Sin tipo'}</b></p><p><span>Estado</span><StatusBadge>{record.status}</StatusBadge></p><p><span>Monto</span><b>{record.amount}</b></p><p><span>Pago</span><StatusBadge>{record.payment}</StatusBadge></p></div>
+      <section className="prestation-description"><span className="section-kicker">Descripción</span><p>{record.description || 'Sin descripción registrada'}</p></section>
       {labels.supportsFollowUp && <section className="followup-detail"><span className="section-kicker">Seguimiento</span><p>{record.followUpNote || 'Sin seguimiento registrado'}</p></section>}
       <div className="status-actions"><button onClick={() => repositories.updatePrestation(record.id, { status: 'Completada' })}><Check size={16}/>Completar</button>{record.status !== 'Programada' && <button onClick={() => repositories.updatePrestation(record.id, { status: 'Programada' })}><Clock3 size={16}/>Volver a programada</button>}<button onClick={() => repositories.updatePrestation(record.id, { status: 'No asistió' })}>No asistió</button><button onClick={() => repositories.updatePrestation(record.id, { status: 'Cancelada' })}>Cancelar</button></div>
       <footer className="modal-actions"><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar {labels.prestation.toLowerCase()}</button><button className="primary-btn" onClick={onClose}>Listo</button></footer>
@@ -196,7 +204,7 @@ function CreateForm({ type, labels, onDone, initialAccountId }: { type: string; 
     } else if (mode === 'prestation') {
       if (!selectedAccount) { setAccountError(`Selecciona ${labels.account.toLowerCase()} por email.`); return }
       const engagementId = Number(values.engagementId) || undefined
-      store.addPrestation({ accountId: selectedAccount.id, engagementId, date: formatScheduledDate(String(values.date || '2026-08-17'), String(values.time || '09:00')), account: selectedAccount.name, name: selectedService?.name || name, origin: engagementId ? labels.engagement : 'Directa', status: String(values.status || 'Programada'), amount: String(values.amount || selectedService?.price || '$0'), payment: 'Pendiente', followUpNote: labels.supportsFollowUp ? String(values.followUpNote || '').trim() : undefined })
+      store.addPrestation({ accountId: selectedAccount.id, engagementId, serviceId: Number(values.serviceId) || undefined, date: formatScheduledDate(String(values.date || '2026-08-17'), String(values.time || '09:00')), account: selectedAccount.name, name, description: String(values.description || '').trim(), origin: engagementId ? labels.engagement : 'Directa', status: String(values.status || 'Programada'), amount: String(values.amount || selectedService?.price || '$0'), payment: 'Pendiente', followUpNote: labels.supportsFollowUp ? String(values.followUpNote || '').trim() : undefined })
     } else if (mode === 'activity') {
       if (!selectedAccount) { setAccountError(`Selecciona ${labels.account.toLowerCase()} por email.`); return }
       store.addActivity({ title: name, relation: `${selectedAccount.name} · ${String(values.activityType || 'Tarea')}`, date: 'Hoy', type: String(values.activityType || 'Tarea'), status: 'Pendiente', accountId: selectedAccount.id, opportunityId: Number(values.opportunityId) || undefined, engagementId: Number(values.engagementId) || undefined, prestationId: Number(values.prestationId) || undefined })
@@ -222,7 +230,7 @@ function CreateForm({ type, labels, onDone, initialAccountId }: { type: string; 
       {mode === 'account' && <><label className="form-span"><span>Email *</span><input name="email" type="email" required autoFocus autoComplete="email" onChange={() => setDuplicateAccountId(null)} /></label><label><span>Nombre *</span><input name="firstName" required autoComplete="given-name" placeholder="Nombre" /></label><label><span>Apellido</span><input name="lastName" autoComplete="family-name" placeholder="Apellido" /></label><label><span>Tipo</span><select name="accountType"><option>Persona</option><option>Empresa</option><option>Marca</option></select></label><label><span>Teléfono</span><input name="phone" autoComplete="tel" /></label><label><span>RUT</span><input name="rut" /></label>{duplicateAccount && <div className="duplicate-account form-span"><b>Ya existe {labels.account.toLowerCase()} con este email.</b><span>{duplicateAccount.name}<small>{duplicateAccount.email}</small></span><button type="button" className="secondary-btn" onClick={onDone}>Usar este {labels.account.toLowerCase()}</button></div>}</>}
       {mode === 'opportunity' && <><label><span>Oportunidad *</span><input name="name" required placeholder="Ej. Plan de 8 sesiones" /></label><label><span>Monto estimado</span><input name="amount" placeholder="$0" /></label><label><span>Cierre estimado</span><input name="date" type="date" defaultValue="2026-08-30" /></label><label><span>Etapa</span><select name="stage"><option>Nuevo</option><option>Contactado</option><option>Propuesta</option><option>Negociación</option></select></label></>}
       {mode === 'engagement' && <><label><span>Nombre *</span><input name="name" required placeholder={`Nombre del ${labels.engagement.toLowerCase()}`} /></label><label><span>Oportunidad de origen</span><select name="opportunityId" disabled={!selectedAccount}><option value="">Venta directa</option>{accountOpportunities.map(opportunity => <option value={opportunity.id} key={opportunity.id}>{opportunity.title}</option>)}</select></label><label><span>Monto acordado</span><input name="amount" placeholder="$0" /></label><label><span>Modalidad</span><select name="billing"><option>Puntual</option><option>Recurrente</option></select></label><label><span>Inicio</span><input name="date" type="date" defaultValue="2026-08-17" /></label></>}
-      {mode === 'prestation' && <><label><span>{labels.service}</span><select value={serviceId} onChange={event => setServiceId(Number(event.target.value))}>{store.services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label><label><span>{labels.engagement} opcional</span><select name="engagementId" disabled={!selectedAccount}><option value="">Directa</option>{accountEngagements.map(engagement => <option value={engagement.id} key={engagement.id}>{engagement.name}</option>)}</select></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Hora</span><input name="time" type="time" defaultValue="09:00" /></label><label><span>Estado</span><select name="status" defaultValue="Programada"><option>Programada</option><option>Completada</option><option>Cancelada</option><option>No asistió</option></select></label><label><span>Monto</span><input key={serviceId} name="amount" defaultValue={selectedService?.price || '$0'} /></label><label><span>Duración sugerida</span><input disabled value={selectedService?.duration || '—'} /></label>{labels.supportsFollowUp && <label className="form-span"><span>Seguimiento</span><textarea name="followUpNote" rows={4} placeholder="Se mantiene frecuencia semanal..."/></label>}</>}
+      {mode === 'prestation' && <><label className="form-span"><span>Nombre del {labels.prestation.toLowerCase()} *</span><input name="name" required placeholder={`Ej. ${labels.supportsFollowUp ? 'Sesión semanal' : 'Entrega de propuesta final'}`} /></label><label><span>Tipo ({labels.service.toLowerCase()})</span><select name="serviceId" value={serviceId} onChange={event => setServiceId(Number(event.target.value))}>{store.services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label><label><span>{labels.engagement} opcional</span><select name="engagementId" disabled={!selectedAccount}><option value="">Directa</option>{accountEngagements.map(engagement => <option value={engagement.id} key={engagement.id}>{engagement.name}</option>)}</select></label><label className="form-span"><span>Descripción</span><textarea name="description" rows={3} placeholder={`Alcance o detalle breve del ${labels.prestation.toLowerCase()}.`}/></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Hora</span><input name="time" type="time" defaultValue="09:00" /></label><label><span>Estado</span><select name="status" defaultValue="Programada"><option>Programada</option><option>Completada</option><option>Cancelada</option><option>No asistió</option></select></label><label><span>Monto</span><input key={serviceId} name="amount" defaultValue={selectedService?.price || '$0'} /></label><label><span>Duración sugerida</span><input disabled value={selectedService?.duration || '—'} /></label>{labels.supportsFollowUp && <label className="form-span"><span>Seguimiento</span><textarea name="followUpNote" rows={4} placeholder="Se mantiene frecuencia semanal..."/></label>}</>}
       {mode === 'activity' && <><label><span>Título *</span><input name="name" required placeholder="Qué necesitas hacer" /></label><label><span>Tipo</span><select name="activityType">{['Tarea','Llamada','Reunión','Email','WhatsApp','Nota','Hito'].map(item => <option key={item}>{item}</option>)}</select></label><label><span>Oportunidad opcional</span><select name="opportunityId" disabled={!selectedAccount}><option value="">Sin oportunidad</option>{accountOpportunities.map(opportunity => <option value={opportunity.id} key={opportunity.id}>{opportunity.title}</option>)}</select></label><label><span>{labels.engagement} opcional</span><select name="engagementId" disabled={!selectedAccount}><option value="">Sin {labels.engagement.toLowerCase()}</option>{accountEngagements.map(engagement => <option value={engagement.id} key={engagement.id}>{engagement.name}</option>)}</select></label><label><span>{labels.prestation} opcional</span><select name="prestationId" disabled={!selectedAccount}><option value="">Sin {labels.prestation.toLowerCase()}</option>{accountPrestations.map(prestation => <option value={prestation.id} key={prestation.id}>{prestation.date} · {prestation.name}</option>)}</select></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Hora</span><input name="time" type="time" defaultValue="09:00" /></label></>}
       {mode === 'payment' && <><label><span>Monto *</span><input name="amount" placeholder="$0" required autoFocus /></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Método</span><select name="method"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option></select></label><label><span>Estado</span><select name="status"><option>Pagado</option><option>Pendiente</option></select></label></>}
       {mode === 'service' && <><label><span>Nombre *</span><input name="name" required autoFocus placeholder={labels.service} /></label><label><span>Precio sugerido</span><input name="amount" required placeholder="$0" /></label><label><span>Duración (min)</span><input name="duration" type="number" defaultValue="60" /></label><label><span>Descripción</span><input name="description" /></label></>}
@@ -234,20 +242,18 @@ function CreateForm({ type, labels, onDone, initialAccountId }: { type: string; 
 
 function Dashboard({ labels, go }: { labels: typeof verticalLabels[Vertical]; go: Navigate }) {
   const repositories = useRepositories()
-  const { activities, opportunities, prestations, payments } = repositories
+  const { activities, prestations, payments } = repositories
   const pendingActivities = activities.filter(activity => activity.status === 'Pendiente' || activity.status === 'Vencida').length
   const pendingPayments = prestations.filter(prestation => prestation.payment !== 'Pagado').length
   const pendingAmount = prestations.reduce((sum, prestation) => sum + repositories.prestationRepository.balanceFor(prestation.id), 0)
   const paidAmount = payments.filter(payment => payment.status === 'Pagado').reduce((sum, payment) => sum + parseMoney(payment.amount), 0)
-  const pipelineAmount = opportunities.reduce((sum, opportunity) => sum + parseMoney(opportunity.amount), 0)
   const today = prestations.filter(prestation => prestation.date.startsWith('17 Ago')).sort((a, b) => a.date.localeCompare(b.date))
   return <>
     <PageHeader eyebrow="Lunes 17 de agosto" title="Buenos días, Francisca" description="Aquí tienes lo más importante para mover tu negocio hoy." action={newPrestationLabel(labels)} onAction={() => go('agenda')} />
-    <div className="metrics-grid">
+    <div className="metrics-grid three">
       <MetricCard label="Ingresos registrados" value={formatMoney(paidAmount)} meta={`${payments.length} pagos en el demo`} icon={WalletCards} tone="green" />
       <MetricCard label="Por cobrar" value={formatMoney(pendingAmount)} meta={`${pendingPayments} ${labels.prestations.toLowerCase()} con saldo`} icon={Clock3} tone="orange" />
       <MetricCard label={`${labels.prestations} realizadas`} value={String(prestations.filter(item => item.status === 'Completada').length)} meta="Unidades completadas" icon={FileCheck2} tone="blue" />
-      <MetricCard label="Oportunidades abiertas" value={formatMoney(pipelineAmount)} meta={`${opportunities.length} oportunidades en curso`} icon={Target} />
     </div>
     <div className="dashboard-grid">
       <section className="card schedule-card">
@@ -492,7 +498,7 @@ function App() {
       {page==='account'&&<Account360View labels={labels} go={go} onCreate={openCreate}/>}
       {page==='opportunities'&&<OpportunitiesPage labels={labels} go={go} onCreate={()=>openCreate('Nueva oportunidad')}/>}
       {page==='opportunity'&&<OpportunityDetail labels={labels} go={go} onCreate={openCreate}/>}
-      {page==='agenda'&&<RepositoryAgendaPage labels={labels} onCreate={()=>openCreate(newPrestationLabel(labels))}/>}
+      {page==='agenda'&&<FunctionalAgendaView labels={labels} onCreate={()=>openCreate(newPrestationLabel(labels))}/>}
       {page==='work'&&<WorkPage labels={labels} go={go} onCreate={()=>openCreate(newEngagementLabel(labels))}/>}
       {page==='engagement'&&<EngagementDetail labels={labels} go={go} onCreate={openCreate}/>}
       {page==='prestations'&&<PrestationsPage labels={labels} onCreate={()=>openCreate(newPrestationLabel(labels))}/>}

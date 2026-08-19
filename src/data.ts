@@ -101,9 +101,11 @@ export type PrestationData = {
   accountId: number
   engagementId?: number
   opportunityId?: number
+  serviceId?: number
   date: string
   account: string
   name: string
+  description?: string
   origin: string
   status: string
   amount: string
@@ -163,10 +165,10 @@ export const agenda = [
 ]
 
 export const prestations: PrestationData[] = [
-  { id: 1, accountId: 1, engagementId: 1, date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pendiente', followUpNote: 'Se mantiene frecuencia semanal. Buena evolución respecto de la sesión anterior.' },
-  { id: 2, accountId: 3, date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
-  { id: 3, accountId: 4, engagementId: 2, date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
-  { id: 4, accountId: 2, engagementId: 3, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
+  { id: 1, accountId: 1, engagementId: 1, serviceId: 1, date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión semanal de seguimiento', description: 'Revisión de avances y próximos objetivos acordados.', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pendiente', followUpNote: 'Se mantiene frecuencia semanal. Buena evolución respecto de la sesión anterior.' },
+  { id: 2, accountId: 3, serviceId: 2, date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', description: 'Primera evaluación y definición de plan de trabajo.', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
+  { id: 3, accountId: 4, engagementId: 2, serviceId: 1, date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
+  { id: 4, accountId: 2, engagementId: 3, serviceId: 3, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
   { id: 5, accountId: 6, opportunityId: 5, date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
   { id: 6, accountId: 1, engagementId: 1, date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
   { id: 7, accountId: 2, engagementId: 3, date: '18 Ago · 09:00', account: 'Juan Soto', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pendiente', followUpNote: 'Se acuerda revisar evolución en la próxima sesión.' },
