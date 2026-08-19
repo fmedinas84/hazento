@@ -4,36 +4,71 @@ export const verticalLabels = {
   health: {
     profession: 'Salud', professionDescription: 'Pacientes, tratamientos y atenciones',
     account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', navigationPrestation: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención',
-    createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana',
+    createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana', supportsFollowUp: true,
     engagementDescription: 'Organiza tratamientos o planes de atención y revisa el avance de sus sesiones.',
   },
   creative: {
     profession: 'Diseñador', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana',
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false,
     engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
   },
   creator: {
     profession: 'Influencer', professionDescription: 'Marcas, partnerships y contenidos',
     account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana',
+    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false,
     engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
   },
   sessions: {
     profession: 'Profesor', professionDescription: 'Alumnos, planes y clases',
     account: 'Alumno', accounts: 'Alumnos', engagement: 'Plan', engagements: 'Planes', prestation: 'Clase', prestations: 'Clases', navigationPrestation: 'Clases', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana',
+    createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana', supportsFollowUp: false,
     engagementDescription: 'Organiza los planes de tus alumnos y revisa clases, avance y pagos.',
   },
   other: {
     profession: 'Otras actividades', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Gantt',
+    createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Gantt', supportsFollowUp: false,
     engagementDescription: 'Organiza tus proyectos y revisa entregas, avance y cobros.',
   },
 } as const
 
 export const verticalOptions = (Object.keys(verticalLabels) as Vertical[]).map(value => ({ value, ...verticalLabels[value] }))
+
+export type PrestationData = {
+  id: number
+  accountId: number
+  engagementId?: number
+  opportunityId?: number
+  date: string
+  account: string
+  name: string
+  origin: string
+  status: string
+  amount: string
+  payment: string
+  followUpNote?: string
+}
+
+export type ActivityData = {
+  id: number
+  title: string
+  relation: string
+  date: string
+  type: string
+  activityType?: string
+  status: string
+  description?: string
+  accountId?: number
+  prestationId?: number
+  engagementId?: number
+  opportunityId?: number
+  source?: 'prestation_follow_up'
+  scheduledAt?: string
+  createdAt?: string
+  updatedAt?: string
+  completedAt?: string
+}
 
 export const accounts = [
   { id: 1, initials: 'MP', name: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
@@ -51,19 +86,19 @@ export const agenda = [
   { id: 4, time: '15:00', name: 'Pedro González', type: 'Sesión individual', status: 'Confirmada', amount: '$35.000', tone: 'violet' },
 ]
 
-export const prestations = [
-  { id: 1, date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
-  { id: 2, date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
-  { id: 3, date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
-  { id: 4, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
-  { id: 5, date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
-  { id: 6, date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
-  { id: 7, date: '18 Ago · 09:00', account: 'Juan Soto', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
-  { id: 8, date: '19 Ago · 11:00', account: 'María Pérez', name: 'Control', origin: 'Tratamiento', status: 'Programada', amount: '$30.000', payment: 'Pendiente' },
-  { id: 9, date: '20 Ago · 15:30', account: 'Daniela Silva', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
-  { id: 10, date: '21 Ago · 10:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
-  { id: 11, date: '08 Ago · 12:00', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Plan', status: 'Completada', amount: '$45.000', payment: 'Pagado' },
-  { id: 12, date: '03 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
+export const prestations: PrestationData[] = [
+  { id: 1, accountId: 1, engagementId: 1, date: '17 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pendiente', followUpNote: 'Se mantiene frecuencia semanal. Buena evolución respecto de la sesión anterior.' },
+  { id: 2, accountId: 3, date: '17 Ago · 10:30', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
+  { id: 3, accountId: 4, engagementId: 2, date: '17 Ago · 15:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pagado' },
+  { id: 4, accountId: 2, engagementId: 3, date: '14 Ago · 11:00', account: 'Juan Soto', name: 'Control', origin: 'Tratamiento', status: 'Completada', amount: '$30.000', payment: 'Parcial' },
+  { id: 5, accountId: 6, opportunityId: 5, date: '12 Ago · 16:30', account: 'Felipe Vargas', name: 'Sesión individual', origin: 'Directa', status: 'No asistió', amount: '$35.000', payment: 'Pendiente' },
+  { id: 6, accountId: 1, engagementId: 1, date: '10 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
+  { id: 7, accountId: 2, engagementId: 3, date: '18 Ago · 09:00', account: 'Juan Soto', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pendiente', followUpNote: 'Se acuerda revisar evolución en la próxima sesión.' },
+  { id: 8, accountId: 1, engagementId: 1, date: '19 Ago · 11:00', account: 'María Pérez', name: 'Control', origin: 'Tratamiento', status: 'Programada', amount: '$30.000', payment: 'Pendiente' },
+  { id: 9, accountId: 5, opportunityId: 1, date: '20 Ago · 15:30', account: 'Daniela Silva', name: 'Evaluación inicial', origin: 'Directa', status: 'Programada', amount: '$45.000', payment: 'Pendiente' },
+  { id: 10, accountId: 4, engagementId: 2, date: '21 Ago · 10:00', account: 'Pedro González', name: 'Sesión individual', origin: 'Tratamiento', status: 'Programada', amount: '$35.000', payment: 'Pendiente' },
+  { id: 11, accountId: 3, engagementId: 4, date: '08 Ago · 12:00', account: 'Carolina Díaz', name: 'Evaluación inicial', origin: 'Plan', status: 'Completada', amount: '$45.000', payment: 'Pagado' },
+  { id: 12, accountId: 1, engagementId: 1, date: '03 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
 ]
 
 export const opportunities = [
@@ -81,12 +116,14 @@ export const engagements = [
   { id: 4, name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo' },
 ]
 
-export const activities = [
+export const activities: ActivityData[] = [
   { id: 1, title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente' },
   { id: 2, title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente' },
   { id: 3, title: 'Enviar propuesta de taller', relation: 'Pedro González · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
   { id: 4, title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente' },
   { id: 5, title: 'Retomar plan de seguimiento', relation: 'Felipe Vargas · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
+  { id: 6, title: 'Seguimiento', relation: '', date: '18 Ago · 20:35', type: 'Nota', activityType: 'note', status: 'Completada', description: 'Se mantiene frecuencia semanal. Buena evolución respecto de la sesión anterior.', accountId: 1, prestationId: 1, engagementId: 1, source: 'prestation_follow_up', createdAt: '2026-08-18T20:35:00-04:00', updatedAt: '2026-08-18T20:35:00-04:00', completedAt: '2026-08-18T20:35:00-04:00' },
+  { id: 7, title: 'Seguimiento', relation: '', date: '18 Ago · 20:50', type: 'Nota', activityType: 'note', status: 'Completada', description: 'Se acuerda revisar evolución en la próxima sesión.', accountId: 2, prestationId: 7, engagementId: 3, source: 'prestation_follow_up', createdAt: '2026-08-18T20:50:00-04:00', updatedAt: '2026-08-18T20:50:00-04:00', completedAt: '2026-08-18T20:50:00-04:00' },
 ]
 
 export const payments = [
