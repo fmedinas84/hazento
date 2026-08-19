@@ -29,6 +29,24 @@ Pantallas React → mismos contratos de repositorio → Supabase → PostgreSQL
 
 Puntos de reemplazo pendientes para esa iteración: carga inicial, suscripciones a cambios, manejo de errores de red, identidad del workspace, Auth y políticas RLS por usuario. Ninguno se simula ni se debilita en esta etapa.
 
+## Planificación por vertical
+
+La planificación separa dos vistas derivadas, sin crear entidades nuevas:
+
+```text
+Calendario = Prestations + Activities
+Cronograma = Engagements + Prestations como hitos
+```
+
+- Salud y Profesor usan **Agenda**, únicamente con Calendario.
+- Diseñador, Influencer y Otras actividades usan **Planificación**, con Calendario y Cronograma.
+- Los Engagements nunca se repiten como eventos del Calendario.
+- `Prestation.date` sigue siendo la única fecha programada o de entrega en el adaptador demo.
+- `Activity` usa `scheduledAt ?? completedAt ?? createdAt` según corresponda.
+- `Engagement.startDate` y `Engagement.endDate` son opcionales y alimentan exclusivamente el Cronograma.
+
+`startDate` y `endDate` son campos temporales del modelo frontend/DemoStore. Cuando se reemplace el repositorio demo, deberán mapearse a `engagements.start_date` y `engagements.end_date`, que ya existen en el esquema objetivo de Supabase. Esta iteración no modifica PostgreSQL.
+
 ## Supabase
 
 El esquema existente se conserva en `supabase/migrations/001_initial_schema.sql`. El frontend no modifica la base de datos y usa datos demo separados en `src/data.ts`. `supabase/seed.sql` contiene un escenario PostgreSQL idempotente y sin credenciales para inspeccionar el modelo manualmente; no es la fuente de datos del frontend.
