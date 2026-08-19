@@ -35,6 +35,47 @@ export const verticalLabels = {
 
 export const verticalOptions = (Object.keys(verticalLabels) as Vertical[]).map(value => ({ value, ...verticalLabels[value] }))
 
+export type AccountData = {
+  id: number
+  initials: string
+  name: string
+  type: string
+  status: string
+  last: string
+  next: string
+  income: string
+  pending: string
+  email?: string
+  phone: string
+  rut: string
+  color: string
+}
+
+export type OpportunityData = {
+  id: number
+  accountId?: number
+  account: string
+  title: string
+  amount: string
+  close: string
+  contact: string
+  last: string
+  stage: string
+}
+
+export type EngagementData = {
+  id: number
+  accountId?: number
+  opportunityId?: number
+  name: string
+  account: string
+  type: string
+  progress: number
+  detail: string
+  amount: string
+  status: string
+}
+
 export type PrestationData = {
   id: number
   accountId: number
@@ -70,7 +111,7 @@ export type ActivityData = {
   completedAt?: string
 }
 
-export const accounts = [
+export const accounts: AccountData[] = [
   { id: 1, initials: 'MP', name: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
   { id: 2, initials: 'JS', name: 'Juan Soto', type: 'Persona', status: 'Activo', last: 'Ayer', next: '19 Ago', income: '$175.000', pending: '$70.000', email: 'juan.soto@email.cl', phone: '+56 9 6732 2210', rut: '15.931.240-8', color: '#ede9ff' },
   { id: 3, initials: 'CD', name: 'Carolina Díaz', type: 'Persona', status: 'Activo', last: '15 Ago', next: 'Hoy', income: '$135.000', pending: '$45.000', email: 'carolina.diaz@email.cl', phone: '+56 9 7814 9022', rut: '18.402.116-5', color: '#fff0d8' },
@@ -101,27 +142,27 @@ export const prestations: PrestationData[] = [
   { id: 12, accountId: 1, engagementId: 1, date: '03 Ago · 09:00', account: 'María Pérez', name: 'Sesión individual', origin: 'Tratamiento', status: 'Completada', amount: '$35.000', payment: 'Pagado' },
 ]
 
-export const opportunities = [
-  { id: 1, account: 'Daniela Silva', title: 'Evaluación y plan inicial', amount: '$180.000', close: '24 Ago', contact: 'Daniela Silva', last: 'Hace 2 días', stage: 'Nuevo' },
-  { id: 2, account: 'Juan Soto', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Juan Soto', last: 'Ayer', stage: 'Contactado' },
-  { id: 3, account: 'Carolina Díaz', title: 'Evaluación y seguimiento', amount: '$165.000', close: '20 Ago', contact: 'Carolina Díaz', last: 'Hoy', stage: 'Contactado' },
-  { id: 4, account: 'Pedro González', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Pedro González', last: 'Hace 3 días', stage: 'Propuesta' },
-  { id: 5, account: 'Felipe Vargas', title: 'Retomar plan de seguimiento', amount: '$210.000', close: '05 Sep', contact: 'Felipe Vargas', last: 'Hace 7 días', stage: 'Negociación' },
+export const opportunities: OpportunityData[] = [
+  { id: 1, accountId: 5, account: 'Daniela Silva', title: 'Evaluación y plan inicial', amount: '$180.000', close: '24 Ago', contact: 'Daniela Silva', last: 'Hace 2 días', stage: 'Nuevo' },
+  { id: 2, accountId: 2, account: 'Juan Soto', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Juan Soto', last: 'Ayer', stage: 'Contactado' },
+  { id: 3, accountId: 3, account: 'Carolina Díaz', title: 'Evaluación y seguimiento', amount: '$165.000', close: '20 Ago', contact: 'Carolina Díaz', last: 'Hoy', stage: 'Contactado' },
+  { id: 4, accountId: 4, account: 'Pedro González', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Pedro González', last: 'Hace 3 días', stage: 'Propuesta' },
+  { id: 5, accountId: 6, account: 'Felipe Vargas', title: 'Retomar plan de seguimiento', amount: '$210.000', close: '05 Sep', contact: 'Felipe Vargas', last: 'Hace 7 días', stage: 'Negociación' },
 ]
 
-export const engagements = [
-  { id: 1, name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo' },
-  { id: 2, name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo' },
-  { id: 3, name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo' },
-  { id: 4, name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo' },
+export const engagements: EngagementData[] = [
+  { id: 1, accountId: 1, name: 'Tratamiento María Pérez', account: 'María Pérez', type: 'Tratamiento', progress: 75, detail: '6 de 8 atenciones', amount: '$280.000', status: 'Activo' },
+  { id: 2, accountId: 4, opportunityId: 4, name: 'Plan de recuperación Pedro', account: 'Pedro González', type: 'Tratamiento', progress: 50, detail: '4 de 8 atenciones', amount: '$280.000', status: 'Activo' },
+  { id: 3, accountId: 2, opportunityId: 2, name: 'Seguimiento Juan Soto', account: 'Juan Soto', type: 'Tratamiento', progress: 40, detail: '2 de 5 atenciones', amount: '$150.000', status: 'Activo' },
+  { id: 4, accountId: 3, opportunityId: 3, name: 'Evaluación Carolina', account: 'Carolina Díaz', type: 'Plan', progress: 20, detail: '1 de 5 atenciones', amount: '$165.000', status: 'Activo' },
 ]
 
 export const activities: ActivityData[] = [
-  { id: 1, title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente' },
-  { id: 2, title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente' },
-  { id: 3, title: 'Enviar propuesta de taller', relation: 'Pedro González · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente' },
-  { id: 4, title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente' },
-  { id: 5, title: 'Retomar plan de seguimiento', relation: 'Felipe Vargas · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida' },
+  { id: 1, title: 'Confirmar atención de Carolina', relation: 'Carolina Díaz · Atención', date: 'Hoy, 09:30', type: 'Tarea', status: 'Pendiente', accountId: 3, prestationId: 2 },
+  { id: 2, title: 'Llamar para coordinar evaluación', relation: 'Daniela Silva · Oportunidad', date: 'Hoy, 12:00', type: 'Llamada', status: 'Pendiente', accountId: 5, opportunityId: 1 },
+  { id: 3, title: 'Enviar propuesta de taller', relation: 'Pedro González · Oportunidad', date: 'Hoy, 16:00', type: 'Email', status: 'Pendiente', accountId: 4, opportunityId: 4 },
+  { id: 4, title: 'Revisar evolución del tratamiento', relation: 'María Pérez · Tratamiento', date: 'Mañana, 10:00', type: 'Hito', status: 'Pendiente', accountId: 1, engagementId: 1 },
+  { id: 5, title: 'Retomar plan de seguimiento', relation: 'Felipe Vargas · Oportunidad', date: '15 Ago', type: 'Llamada', status: 'Vencida', accountId: 6, opportunityId: 5 },
   { id: 6, title: 'Seguimiento', relation: '', date: '18 Ago · 20:35', type: 'Nota', activityType: 'note', status: 'Completada', description: 'Se mantiene frecuencia semanal. Buena evolución respecto de la sesión anterior.', accountId: 1, prestationId: 1, engagementId: 1, source: 'prestation_follow_up', createdAt: '2026-08-18T20:35:00-04:00', updatedAt: '2026-08-18T20:35:00-04:00', completedAt: '2026-08-18T20:35:00-04:00' },
   { id: 7, title: 'Seguimiento', relation: '', date: '18 Ago · 20:50', type: 'Nota', activityType: 'note', status: 'Completada', description: 'Se acuerda revisar evolución en la próxima sesión.', accountId: 2, prestationId: 7, engagementId: 3, source: 'prestation_follow_up', createdAt: '2026-08-18T20:50:00-04:00', updatedAt: '2026-08-18T20:50:00-04:00', completedAt: '2026-08-18T20:50:00-04:00' },
 ]

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { findAccountByEmail } from './accountEmail'
 import { useDemoStore } from './store'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
@@ -41,6 +42,7 @@ export function useRepositories() {
       records: store.accounts,
       create: store.addAccount,
       update: store.updateAccount,
+      findByEmail: (email: string) => findAccountByEmail(store.accounts, email),
       archive: (id: number) => store.updateAccount(id, { status: 'Inactivo', next: '—' }),
     }
     const opportunities = { records: store.opportunities, create: store.addOpportunity, update: store.updateOpportunity }
