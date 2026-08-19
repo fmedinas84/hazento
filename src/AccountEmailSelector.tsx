@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, Mail, Plus, Search, UserRound, X } from 'lucide-react'
 import { findAccountByEmail, isValidEmail, normalizeEmail, type NewAccountRecord } from './accountEmail'
+import { OrganizationSelector } from './OrganizationSelector'
+import type { OrganizationData } from './data'
+import type { NewOrganizationRecord } from './organizationName'
 import type { Account } from './store'
 
 const MAX_VISIBLE_ACCOUNTS = 3
@@ -9,6 +12,8 @@ type AccountLabels = {
   account: string
   accounts: string
   createAccount: string
+  organization: string
+  createOrganization: string
 }
 
 type Props = {
@@ -17,9 +22,11 @@ type Props = {
   selectedAccountId: number | null
   onSelect: (account: Account | null) => void
   onCreate: (account: NewAccountRecord) => Account
+  organizations: OrganizationData[]
+  onCreateOrganization: (organization: NewOrganizationRecord) => OrganizationData
 }
 
-export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSelect, onCreate }: Props) {
+export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSelect, onCreate, organizations, onCreateOrganization }: Props) {
   const selected = accounts.find(account => account.id === selectedAccountId)
   const [query, setQuery] = useState(selected?.email || '')
   const [open, setOpen] = useState(false)
@@ -27,6 +34,8 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
   const [duplicate, setDuplicate] = useState<Account | null>(null)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
+  const [organizationId, setOrganizationId] = useState<number | undefined>()
+  const [role, setRole] = useState('')
   const [createError, setCreateError] = useState('')
   const normalizedQuery = normalizeEmail(query)
   const validEmail = isValidEmail(query)
@@ -51,6 +60,8 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
     setDuplicate(null)
     setNewName('')
     setNewPhone('')
+    setOrganizationId(undefined)
+    setRole('')
     setCreateError('')
     setCreating(true)
     setOpen(false)
@@ -65,7 +76,13 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
     if (!newName.trim()) { setCreateError('Ingresa el nombre para continuar.'); return }
     const created = onCreate({
       name: newName.trim(),
-      type: labels.account === 'Marca' ? 'Marca' : 'Persona',
+      workspaceId: 1,
+      displayName: newName.trim(),
+      firstName: newName.trim().split(/\s+/)[0],
+      lastName: newName.trim().split(/\s+/).slice(1).join(' '),
+      type: 'Persona',
+      organizationId,
+      role: role.trim() || undefined,
       status: 'Prospecto',
       last: 'Ahora',
       next: '—',
@@ -113,8 +130,10 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
       <div><span className="section-kicker">Sin salir del formulario</span><h3>{inlineCreateLabel}</h3><p>Al guardar quedará seleccionado automáticamente.</p></div>
       <div className="inline-account-fields" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); createAccount() } }}>
         <label><span>Email *</span><input value={normalizeEmail(query)} readOnly /></label>
-        <label><span>Nombre / razón social *</span><input value={newName} onChange={event => { setNewName(event.target.value); setCreateError('') }} required autoFocus /></label>
+        <label><span>Nombre de la persona *</span><input value={newName} onChange={event => { setNewName(event.target.value); setCreateError('') }} required autoFocus /></label>
         <label><span>Teléfono</span><input value={newPhone} onChange={event => setNewPhone(event.target.value)} autoComplete="tel" /></label>
+        <OrganizationSelector labels={labels} organizations={organizations} selectedId={organizationId} onSelect={organization => setOrganizationId(organization?.id)} onCreate={onCreateOrganization}/>
+        <label><span>Cargo</span><input value={role} onChange={event => setRole(event.target.value)} placeholder="Opcional" disabled={!organizationId}/></label>
         {createError && <p className="form-error">{createError}</p>}
         {duplicate && <div className="duplicate-account"><b>Ya existe {labels.account.toLowerCase()} con este email.</b><span>{duplicate.name}<small>{duplicate.email}</small></span><button type="button" className="secondary-btn" onClick={() => choose(duplicate)}>Usar este {labels.account.toLowerCase()}</button></div>}
         <footer><button type="button" className="ghost-btn" onClick={() => { setCreating(false); setOpen(true); setDuplicate(null) }}>Volver</button><button type="button" className="primary-btn" onClick={createAccount}>Crear y seleccionar</button></footer>

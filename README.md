@@ -29,6 +29,28 @@ Pantallas React → mismos contratos de repositorio → Supabase → PostgreSQL
 
 Puntos de reemplazo pendientes para esa iteración: carga inicial, suscripciones a cambios, manejo de errores de red, identidad del workspace, Auth y políticas RLS por usuario. Ninguno se simula ni se debilita en esta etapa.
 
+## Modelo de clientes People First
+
+Hazento inicia cada relación desde una persona. Una empresa o marca agrega contexto, pero no reemplaza a la persona como sujeto operativo:
+
+```text
+Person
+└── Organization opcional (máximo una organización principal)
+
+Person
+├── Opportunities
+├── Engagements
+├── Prestations
+├── Activities
+└── Payments
+```
+
+En el adaptador demo, `AccountData` representa a la persona y conserva `accountId` en los objetos operativos para evitar un cambio masivo de contratos. `organizationId` y `role` son opcionales. `Organization` tiene repositorio propio, se identifica funcionalmente por nombre normalizado dentro del workspace y se presenta como una pestaña secundaria dentro de Personas/Pacientes/Contactos/Alumnos.
+
+La creación por email sigue aplicando unicidad funcional por `workspaceId + normalizedEmail`; todas las relaciones continúan usando IDs, nunca emails o nombres. Los registros locales antiguos se enriquecen sin borrar ni convertir silenciosamente sus datos.
+
+Esta iteración no cambia PostgreSQL. Al conectar la persistencia real habrá que incorporar `organizations`, asociar la persona mediante `organization_id`, definir las restricciones multitenant correspondientes y decidir la migración controlada de Accounts históricos tipo empresa/marca. Auth y RLS permanecen intactos hasta esa etapa.
+
 ## Planificación por vertical
 
 La planificación separa dos vistas derivadas, sin crear entidades nuevas:

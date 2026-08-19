@@ -4,30 +4,35 @@ export const verticalLabels = {
   health: {
     profession: 'Salud', professionDescription: 'Pacientes, tratamientos y atenciones',
     account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', navigationPrestation: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención',
+    peopleTab: 'Pacientes', organization: 'Empresa', organizations: 'Empresas', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana', supportsFollowUp: true, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
     engagementDescription: 'Organiza tratamientos o planes de atención y revisa el avance de sus sesiones.',
   },
   creative: {
     profession: 'Diseñador', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
+    peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
   },
   creator: {
     profession: 'Influencer', professionDescription: 'Marcas, partnerships y contenidos',
-    account: 'Marca', accounts: 'Marcas', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
-    createAccount: 'Nueva marca', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
+    account: 'Contacto', accounts: 'Contactos', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
+    peopleTab: 'Personas', organization: 'Marca', organizations: 'Marcas', createOrganization: 'Nueva marca',
+    createAccount: 'Nuevo contacto', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
   },
   sessions: {
     profession: 'Profesor', professionDescription: 'Alumnos, planes y clases',
     account: 'Alumno', accounts: 'Alumnos', engagement: 'Plan', engagements: 'Planes', prestation: 'Clase', prestations: 'Clases', navigationPrestation: 'Clases', service: 'Servicio', services: 'Servicios',
+    peopleTab: 'Alumnos', organization: 'Empresa', organizations: 'Empresas', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
     engagementDescription: 'Organiza los planes de tus alumnos y revisa clases, avance y pagos.',
   },
   other: {
     profession: 'Otras actividades', professionDescription: 'Clientes, proyectos y entregables',
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
+    peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
     engagementDescription: 'Organiza tus proyectos y revisa entregas, avance y cobros.',
   },
@@ -37,8 +42,14 @@ export const verticalOptions = (Object.keys(verticalLabels) as Vertical[]).map(v
 
 export type AccountData = {
   id: number
+  workspaceId?: number
   initials: string
   name: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  organizationId?: number
+  role?: string
   type: string
   status: string
   last: string
@@ -54,6 +65,29 @@ export type AccountData = {
   commune?: string
   notes?: string
   color: string
+  createdAt?: string
+  updatedAt?: string
+  archivedAt?: string
+}
+
+export type OrganizationData = {
+  id: number
+  workspaceId: number
+  name: string
+  legalName?: string
+  taxId?: string
+  email?: string
+  phone?: string
+  website?: string
+  businessActivity?: string
+  address?: string
+  commune?: string
+  city?: string
+  region?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+  archivedAt?: string
 }
 
 export type ContactData = {
@@ -149,12 +183,19 @@ export type PaymentData = {
 }
 
 export const accounts: AccountData[] = [
-  { id: 1, initials: 'MP', name: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
-  { id: 2, initials: 'JS', name: 'Juan Soto', type: 'Persona', status: 'Activo', last: 'Ayer', next: '19 Ago', income: '$175.000', pending: '$70.000', email: 'juan.soto@email.cl', phone: '+56 9 6732 2210', rut: '15.931.240-8', color: '#ede9ff' },
-  { id: 3, initials: 'CD', name: 'Carolina Díaz', type: 'Persona', status: 'Activo', last: '15 Ago', next: 'Hoy', income: '$135.000', pending: '$45.000', email: 'carolina.diaz@email.cl', phone: '+56 9 7814 9022', rut: '18.402.116-5', color: '#fff0d8' },
-  { id: 4, initials: 'PG', name: 'Pedro González', type: 'Persona', status: 'Activo', last: '12 Ago', next: 'Hoy', income: '$315.000', pending: '$0', email: 'pedro.g@email.cl', phone: '+56 9 3380 1244', rut: '14.770.803-1', color: '#dceeff' },
-  { id: 5, initials: 'DS', name: 'Daniela Silva', type: 'Persona', status: 'Prospecto', last: '10 Ago', next: '21 Ago', income: '$0', pending: '$0', email: 'daniela@email.cl', phone: '+56 9 2284 6115', rut: '19.730.842-9', color: '#f5e6f0' },
-  { id: 6, initials: 'FV', name: 'Felipe Vargas', type: 'Persona', status: 'Inactivo', last: '28 Jul', next: '—', income: '$210.000', pending: '$35.000', email: 'felipe@email.cl', phone: '+56 9 3120 4566', rut: '16.982.177-4', color: '#e6efeb' },
+  { id: 1, workspaceId: 1, initials: 'MP', name: 'María Pérez', firstName: 'María', lastName: 'Pérez', displayName: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
+  { id: 2, workspaceId: 1, initials: 'JS', name: 'Juan Soto', firstName: 'Juan', lastName: 'Soto', displayName: 'Juan Soto', organizationId: 1, role: 'Gerente Comercial', type: 'Persona', status: 'Activo', last: 'Ayer', next: '19 Ago', income: '$175.000', pending: '$70.000', email: 'juan@acme.cl', phone: '+56 9 6732 2210', rut: '15.931.240-8', color: '#ede9ff' },
+  { id: 3, workspaceId: 1, initials: 'CD', name: 'Carolina Díaz', firstName: 'Carolina', lastName: 'Díaz', displayName: 'Carolina Díaz', organizationId: 2, role: 'Brand Manager', type: 'Persona', status: 'Activo', last: '15 Ago', next: 'Hoy', income: '$135.000', pending: '$45.000', email: 'carolina@nike.cl', phone: '+56 9 7814 9022', rut: '18.402.116-5', color: '#fff0d8' },
+  { id: 4, workspaceId: 1, initials: 'PG', name: 'Pedro González', firstName: 'Pedro', lastName: 'González', displayName: 'Pedro González', type: 'Persona', status: 'Activo', last: '12 Ago', next: 'Hoy', income: '$315.000', pending: '$0', email: 'pedro.g@email.cl', phone: '+56 9 3380 1244', rut: '14.770.803-1', color: '#dceeff' },
+  { id: 5, workspaceId: 1, initials: 'DS', name: 'Daniela Silva', firstName: 'Daniela', lastName: 'Silva', displayName: 'Daniela Silva', organizationId: 3, role: 'Dueña', type: 'Persona', status: 'Prospecto', last: '10 Ago', next: '21 Ago', income: '$0', pending: '$0', email: 'daniela@oslo.cl', phone: '+56 9 2284 6115', rut: '19.730.842-9', color: '#f5e6f0' },
+  { id: 6, workspaceId: 1, initials: 'FV', name: 'Felipe Vargas', firstName: 'Felipe', lastName: 'Vargas', displayName: 'Felipe Vargas', type: 'Persona', status: 'Inactivo', last: '28 Jul', next: '—', income: '$210.000', pending: '$35.000', email: 'felipe@email.cl', phone: '+56 9 3120 4566', rut: '16.982.177-4', color: '#e6efeb' },
+]
+
+export const organizations: OrganizationData[] = [
+  { id: 1, workspaceId: 1, name: 'Acme', legalName: 'Acme SpA', taxId: '76.432.100-8', website: 'https://acme.cl', city: 'Santiago', createdAt: '2026-07-10T12:00:00-04:00', updatedAt: '2026-08-18T09:00:00-04:00' },
+  { id: 2, workspaceId: 1, name: 'Nike', website: 'https://nike.cl', createdAt: '2026-07-15T12:00:00-04:00', updatedAt: '2026-08-18T09:00:00-04:00' },
+  { id: 3, workspaceId: 1, name: 'Restaurante Oslo', city: 'Santiago', createdAt: '2026-08-01T12:00:00-04:00', updatedAt: '2026-08-18T09:00:00-04:00' },
+  { id: 4, workspaceId: 1, name: 'Globex', createdAt: '2026-08-10T12:00:00-04:00', updatedAt: '2026-08-18T09:00:00-04:00' },
 ]
 
 export const contacts: ContactData[] = []

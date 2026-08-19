@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { findAccountByEmail } from './accountEmail'
+import { findOrganizationByName } from './organizationName'
 import { useDemoStore } from './store'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
@@ -61,6 +62,15 @@ export function useRepositories() {
       getAllocatedAmount: getAccountAllocatedAmount,
       getOutstandingAmount: getAccountOutstandingAmount,
     }
+    const organizations = {
+      records: store.organizations.filter(record => !record.archivedAt),
+      list: () => store.organizations.filter(record => !record.archivedAt),
+      getById: (id: number) => store.organizations.find(record => record.id === id),
+      create: store.addOrganization,
+      update: store.updateOrganization,
+      archive: store.archiveOrganization,
+      findByName: (name: string) => findOrganizationByName(store.organizations, name),
+    }
     const contacts = { records: store.contacts, create: store.addContact }
     const opportunities = { records: store.opportunities, create: store.addOpportunity, update: store.updateOpportunity }
     const engagements = { records: store.engagements, create: store.addEngagement, update: store.updateEngagement }
@@ -83,6 +93,7 @@ export function useRepositories() {
 
     return {
       accounts: store.accounts,
+      organizations: organizations.records,
       contacts: store.contacts,
       opportunities: store.opportunities,
       engagements: store.engagements,
@@ -92,6 +103,8 @@ export function useRepositories() {
       paymentAllocations: store.paymentAllocations,
       services: store.services,
       addAccount: store.addAccount,
+      addOrganization: store.addOrganization,
+      updateOrganization: store.updateOrganization,
       updateAccount: store.updateAccount,
       addContact: store.addContact,
       addOpportunity: store.addOpportunity,
@@ -108,6 +121,7 @@ export function useRepositories() {
       toggleService: store.toggleService,
       resetDemo: store.resetDemo,
       accountRepository: accounts,
+      organizationRepository: organizations,
       contactRepository: contacts,
       opportunityRepository: opportunities,
       engagementRepository: engagements,
