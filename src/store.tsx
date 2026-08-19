@@ -5,6 +5,7 @@ import {
   type ContactData,
   type EngagementData,
   type OpportunityData,
+  type OrganizationData,
   type PaymentData,
   type PrestationData,
   accounts as seedAccounts,
@@ -12,16 +13,19 @@ import {
   contacts as seedContacts,
   engagements as seedEngagements,
   opportunities as seedOpportunities,
+  organizations as seedOrganizations,
   paymentAllocations as seedPaymentAllocations,
   payments as seedPayments,
   prestations as seedPrestations,
   services as seedServices,
 } from './data'
 import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
+import { findOrganizationByName, type NewOrganizationRecord } from './organizationName'
 
 export type Account = AccountData
 export type Contact = ContactData
 export type Opportunity = OpportunityData
+export type Organization = OrganizationData
 export type Engagement = EngagementData
 export type Prestation = PrestationData
 export type ActivityRecord = ActivityData
@@ -31,6 +35,7 @@ export type Service = (typeof seedServices)[number]
 
 type DemoState = {
   accounts: Account[]
+  organizations: Organization[]
   contacts: Contact[]
   opportunities: Opportunity[]
   engagements: Engagement[]
@@ -44,6 +49,9 @@ type DemoState = {
 type DemoStore = DemoState & {
   addAccount: (record: NewAccountRecord) => Account
   updateAccount: (id: number, changes: Partial<Account>) => void
+  addOrganization: (record: NewOrganizationRecord) => Organization
+  updateOrganization: (id: number, changes: Partial<Organization>) => void
+  archiveOrganization: (id: number) => void
   addContact: (record: Omit<Contact, 'id'>) => Contact
   addOpportunity: (record: Omit<Opportunity, 'id'>) => Opportunity
   updateOpportunity: (id: number, changes: Partial<Opportunity>) => void
@@ -64,6 +72,7 @@ const STORAGE_KEY = 'hazento-demo-v4'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   accounts: seedAccounts,
+  organizations: seedOrganizations,
   contacts: seedContacts,
   opportunities: seedOpportunities,
   engagements: seedEngagements,
@@ -75,11 +84,15 @@ const seedState: DemoState = {
 }
 
 function migrateDemoState(saved: DemoState): DemoState {
-  const accounts = saved.accounts.map(account => ({ ...account, email: account.email ? normalizeEmail(account.email) : undefined }))
+  const accounts = saved.accounts.map(account => {
+    const nameParts = account.name.trim().split(/\s+/)
+    return { ...account, workspaceId: account.workspaceId ?? 1, displayName: account.displayName || account.name, firstName: account.firstName || nameParts[0], lastName: account.lastName || nameParts.slice(1).join(' '), email: account.email ? normalizeEmail(account.email) : undefined }
+  })
   const accountIdFor = (name: string) => accounts.find(account => account.name === name)?.id
   return {
     ...saved,
     accounts,
+    organizations: saved.organizations ?? seedOrganizations,
     contacts: saved.contacts ?? seedContacts,
     opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account) })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
@@ -170,6 +183,23 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           payments: current.payments.map(record => record.accountId === id && nextName ? { ...record, account: nextName } : record),
         }
       })
+    },
+    addOrganization(record) {
+      const existing = findOrganizationByName(state.organizations, record.name)
+      if (existing) return existing
+      const savedAt = new Date().toISOString()
+      const created: Organization = { ...record, name: record.name.trim().replace(/\s+/g, ' '), id: nextId(state.organizations), createdAt: savedAt, updatedAt: savedAt }
+      setState(current => ({ ...current, organizations: [created, ...current.organizations] }))
+      return created
+    },
+    updateOrganization(id, changes) {
+      setState(current => {
+        if (changes.name && findOrganizationByName(current.organizations, changes.name, id)) return current
+        return { ...current, organizations: current.organizations.map(record => record.id === id ? { ...record, ...changes, name: changes.name?.trim().replace(/\s+/g, ' ') || record.name, updatedAt: new Date().toISOString() } : record) }
+      })
+    },
+    archiveOrganization(id) {
+      setState(current => ({ ...current, organizations: current.organizations.map(record => record.id === id ? { ...record, archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : record) }))
     },
     addContact(record) {
       const created: Contact = { ...record, id: nextId(state.contacts) }
