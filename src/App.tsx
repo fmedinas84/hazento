@@ -8,6 +8,7 @@ import {
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Vertical, verticalLabels, verticalOptions } from './data'
 import { AccountEmailSelector } from './AccountEmailSelector'
+import { Account360View } from './Account360View'
 import { findAccountByEmail, normalizeEmail } from './accountEmail'
 import { formatMoney, parseMoney, useRepositories } from './repositories'
 
@@ -156,12 +157,12 @@ function PrestationDetailModal({ record, labels, onClose }: { record: EditablePr
   </Modal>
 }
 
-function CreateForm({ type, labels, onDone }: { type: string; labels: typeof verticalLabels[Vertical]; onDone: () => void }) {
+function CreateForm({ type, labels, onDone, initialAccountId }: { type: string; labels: typeof verticalLabels[Vertical]; onDone: () => void; initialAccountId?: number }) {
   const store = useRepositories()
   const lower = type.toLowerCase()
   const mode = lower.includes('pago') ? 'payment' : lower.includes('oportunidad') ? 'opportunity' : lower.includes(labels.account.toLowerCase()) ? 'account' : lower.includes(labels.engagement.toLowerCase()) ? 'engagement' : lower.includes(labels.prestation.toLowerCase()) ? 'prestation' : lower.includes('actividad') ? 'activity' : 'service'
   const emailFirstMode = ['opportunity', 'engagement', 'prestation', 'activity'].includes(mode)
-  const [accountId, setAccountId] = useState<number | null>(mode === 'payment' ? store.accounts[0]?.id || null : null)
+  const [accountId, setAccountId] = useState<number | null>(initialAccountId || (mode === 'payment' ? store.accounts[0]?.id || null : null))
   const [serviceId, setServiceId] = useState(store.services[0]?.id || 0)
   const [allocated, setAllocated] = useState<number[]>([])
   const [accountError, setAccountError] = useState('')
@@ -206,7 +207,7 @@ function CreateForm({ type, labels, onDone }: { type: string; labels: typeof ver
         remaining -= amount
         return { prestationId, amount }
       }).filter(allocation => allocation.amount > 0)
-      store.addPayment({ date: 'Hoy', account: accountName, amount: formatMoney(parseMoney(String(values.amount || '$0'))), method: String(values.method || 'Transferencia'), status: String(values.status || 'Pagado'), allocations: allocations.length ? `${allocations.length} ${labels.prestations.toLowerCase()}` : 'Sin asignar' }, allocations)
+      store.addPayment({ accountId: selectedAccount?.id, date: 'Hoy', account: accountName, amount: formatMoney(parseMoney(String(values.amount || '$0'))), method: String(values.method || 'Transferencia'), status: String(values.status || 'Pagado'), allocations: allocations.length ? `${allocations.length} ${labels.prestations.toLowerCase()}` : 'Sin asignar' }, allocations)
     } else {
       store.addService({ name, description: String(values.description || ''), duration: `${String(values.duration || '60')} min`, price: String(values.amount || '$0'), active: true })
     }
@@ -471,7 +472,7 @@ function RepositorySettingsPage({ vertical, setVertical, notify }: { vertical: V
 function SettingsPage({ vertical, setVertical, notify }: { vertical:Vertical; setVertical:(v:Vertical)=>void; notify:(message:string)=>void }) { const [tab,setTab]=useState('Negocio');const store=useRepositories();return <><PageHeader title="Configuración" description="Personaliza tu negocio, preferencias y la forma en que Hazento trabaja contigo."/><div className="settings-layout"><aside className="settings-nav card">{['Perfil','Negocio','Servicios','Preferencias'].map(x=><button className={tab===x?'active':''} onClick={()=>setTab(x)} key={x}>{x}</button>)}</aside><main className="card settings-card">{tab==='Negocio'?<><div><span className="section-kicker">Workspace</span><h2>Datos del negocio</h2><p>La vertical adapta el lenguaje, las acciones rápidas y las prioridades sin tocar los datos.</p></div><div className="form-grid"><label><span>Nombre del negocio</span><input defaultValue="Consulta Demo"/></label><label><span>País</span><select><option>Chile</option></select></label><label><span>Moneda</span><select><option>Peso chileno (CLP)</option></select></label><label><span>Zona horaria</span><select><option>America/Santiago</option></select></label></div><div className="vertical-setting"><h3>Tipo de profesional</h3><p>Cambia temporalmente la vertical para validar la experiencia.</p><div>{([['health','Salud','Pacientes, tratamientos y atenciones'],['creative','Profesional creativo','Clientes, proyectos y entregables'],['creator','Creador de contenido','Marcas, partnerships y contenidos']] as const).map(v=><button className={vertical===v[0]?'active':''} onClick={()=>setVertical(v[0])} key={v[0]}><span>{v[0]==='health'?<HeartPulse/>:v[0]==='creative'?<BriefcaseBusiness/>:<Sparkles/>}</span><div><b>{v[1]}</b><small>{v[2]}</small></div>{vertical===v[0]&&<Check size={18}/>}</button>)}</div></div></>:<><div><span className="section-kicker">{tab}</span><h2>{tab==='Perfil'?'Tu información':tab==='Servicios'?'Catálogo de servicios':'Preferencias de uso'}</h2><p>{tab==='Perfil'?'Datos visibles dentro de tu workspace.':tab==='Servicios'?'Administra el catálogo desde su pantalla dedicada.':'Configura una experiencia simple y enfocada.'}</p></div>{tab==='Perfil'&&<div className="form-grid"><label><span>Nombre</span><input defaultValue="Francisca"/></label><label><span>Apellido</span><input defaultValue="Medina"/></label><label><span>Teléfono</span><input defaultValue="+56 9 1234 5678"/></label></div>}{tab==='Servicios'&&<EmptyState title="Catálogo centralizado" body="Los precios y duraciones se administran en Tipos de atención para evitar configuraciones duplicadas." action="Entendido" onAction={()=>setTab('Negocio')}/>} {tab==='Preferencias'&&<div className="setting-options"><label><input type="checkbox" defaultChecked/> Mostrar pendientes prioritarios al iniciar</label><label><input type="checkbox" defaultChecked/> Confirmar antes de archivar</label><button className="secondary-btn" onClick={()=>{if(window.confirm('¿Restaurar todos los datos de demostración?')){store.resetDemo();notify('Datos demo restaurados')}}}>Restaurar datos demo</button></div>}</>}<footer><button className="primary-btn" onClick={()=>notify('Configuración guardada')}>Guardar cambios</button></footer></main></div></> }
 
 function App() {
-  const {page,go}=useAppRoute(); const store=useRepositories(); const [vertical,setVerticalState]=useState<Vertical>(()=>(localStorage.getItem('hazento-vertical') as Vertical)||'health'); const [collapsed,setCollapsed]=useState(false); const [createOpen,setCreateOpen]=useState(false); const [createType,setCreateType]=useState('Nueva atención'); const [createMenu,setCreateMenu]=useState(false); const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState(''); const [toast,setToast]=useState('')
+  const {page,go}=useAppRoute(); const store=useRepositories(); const [vertical,setVerticalState]=useState<Vertical>(()=>(localStorage.getItem('hazento-vertical') as Vertical)||'health'); const [collapsed,setCollapsed]=useState(false); const [createOpen,setCreateOpen]=useState(false); const [createType,setCreateType]=useState('Nueva atención'); const [createAccountId,setCreateAccountId]=useState<number|undefined>(); const [createMenu,setCreateMenu]=useState(false); const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState(''); const [toast,setToast]=useState('')
   const labels=verticalLabels[vertical]
   const setVertical=(value:Vertical)=>{setVerticalState(value);localStorage.setItem('hazento-vertical',value)}
   const createOptions: Array<[string, React.ElementType]> = [[newAccountLabel(labels),UserRound],['Nueva oportunidad',Target],[newEngagementLabel(labels),BriefcaseBusiness],[newPrestationLabel(labels),CalendarDays],['Nueva actividad',ListChecks],['Registrar pago',CreditCard]]
@@ -480,7 +481,7 @@ function App() {
     ['dashboard','Inicio',LayoutDashboard],['accounts',labels.accounts,UsersRound],['opportunities','Oportunidades',Target],['agenda','Agenda',CalendarDays],['work',labels.engagements,BriefcaseBusiness],['prestations',labels.navigationPrestation,FileCheck2],['activities','Actividades',ListChecks],['payments','Pagos',CreditCard],['services',labels.services,Grid2X2],['settings','Configuración',Settings],
   ] as const
   const title = useMemo(()=>nav.find(n=>n[0]===page)?.[1] || 'Hazento',[page,labels])
-  const openCreate=(type?:string)=>{setCreateType(type||newPrestationLabel(labels));setCreateOpen(true);setCreateMenu(false)}
+  const openCreate=(type?:string,accountId?:number)=>{setCreateType(type||newPrestationLabel(labels));setCreateAccountId(accountId);setCreateOpen(true);setCreateMenu(false)}
   const notify=(message:string)=>{setToast(message);setTimeout(()=>setToast(''),2600)}; const done=()=>{setCreateOpen(false);notify('Guardado correctamente')}
   useEffect(()=>{const handle=(event:KeyboardEvent)=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setSearchOpen(true)}if(event.key==='Escape'){setSearchOpen(false);setCreateOpen(false);setCreateMenu(false)}};window.addEventListener('keydown',handle);return()=>window.removeEventListener('keydown',handle)},[])
   return <div className={cls('app-shell',collapsed&&'sidebar-collapsed')}>
@@ -488,7 +489,7 @@ function App() {
     <div className="app-main"><header className="topbar"><button aria-label="Abrir navegación" className="mobile-menu" onClick={()=>setCollapsed(!collapsed)}><Menu size={20}/></button><button className="global-search" onClick={()=>setSearchOpen(true)}><Search size={18}/><span>Buscar en Hazento...</span><kbd>⌘ K</kbd></button><div className="top-actions"><button className="workspace-name" onClick={()=>go('settings')}><span className="workspace-dot">CD</span><div><small>Workspace</small><b>Consulta Demo</b></div><ChevronDown size={15}/></button><button aria-label="Ver actividades vencidas" className="icon-btn" onClick={()=>go('activities',{status:'Vencidas'})}><Bell size={18}/><i className="notification-dot"/></button><div className="create-wrap"><button className="primary-btn" onClick={()=>setCreateMenu(!createMenu)}><Plus size={18}/>Crear<ChevronDown size={14}/></button>{createMenu&&<div className="create-menu">{createOptions.map(([x,Icon])=><button onClick={()=>openCreate(x)} key={x}><Icon size={17}/>{x}</button>)}</div>}</div></div></header><main className="content" aria-label={String(title)}>
       {page==='dashboard'&&<Dashboard labels={labels} go={go}/>}
       {page==='accounts'&&<AccountsPage labels={labels} go={go} onCreate={()=>openCreate(newAccountLabel(labels))}/>}
-      {page==='account'&&<AccountDetail labels={labels} go={go} onCreate={openCreate}/>}
+      {page==='account'&&<Account360View labels={labels} go={go} onCreate={openCreate}/>}
       {page==='opportunities'&&<OpportunitiesPage labels={labels} go={go} onCreate={()=>openCreate('Nueva oportunidad')}/>}
       {page==='opportunity'&&<OpportunityDetail labels={labels} go={go} onCreate={openCreate}/>}
       {page==='agenda'&&<RepositoryAgendaPage labels={labels} onCreate={()=>openCreate(newPrestationLabel(labels))}/>}
@@ -500,7 +501,7 @@ function App() {
       {page==='services'&&<RepositoryServicesPage labels={labels} onCreate={()=>openCreate(`Crear ${labels.service.toLowerCase()}`)}/>}
       {page==='settings'&&<RepositorySettingsPage vertical={vertical} setVertical={setVertical} notify={notify}/>}
     </main></div>
-    {createOpen&&<Modal title={createType} subtitle="Completa los datos principales. Podrás agregar más detalle después." onClose={()=>setCreateOpen(false)} wide={createType==='Registrar pago'}><CreateForm type={createType} labels={labels} onDone={done}/></Modal>}
+    {createOpen&&<Modal title={createType} subtitle="Completa los datos principales. Podrás agregar más detalle después." onClose={()=>setCreateOpen(false)} wide={createType==='Registrar pago'}><CreateForm type={createType} labels={labels} initialAccountId={createAccountId} onDone={done}/></Modal>}
     {searchOpen&&<Modal title="Buscar en Hazento" onClose={()=>{setSearchOpen(false);setSearchQuery('')}}><label className="palette-search"><Search size={20}/><input autoFocus value={searchQuery} onChange={event=>setSearchQuery(event.target.value)} placeholder={`Busca ${labels.accounts.toLowerCase()}, oportunidades o ${labels.engagements.toLowerCase()}...`}/></label><div className="search-results"><span>{normalized?'Resultados':'Escribe para buscar en todo Hazento'}</span>{searchResults.map(({kind,name,Icon,page:target,id})=><button onClick={()=>{setSearchOpen(false);setSearchQuery('');go(target,{id})}} key={`${kind}-${id}`}><span className="result-icon"><Icon size={17}/></span><div><b>{name}</b><small>{kind}</small></div><ChevronRight size={16}/></button>)}{normalized&&!searchResults.length&&<p className="no-results">No encontramos resultados para “{searchQuery}”.</p>}</div></Modal>}
     {toast&&<div className="toast"><span><Check size={15}/></span>{toast}</div>}
   </div>
