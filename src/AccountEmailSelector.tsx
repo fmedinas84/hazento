@@ -3,6 +3,8 @@ import { Check, ChevronDown, Mail, Plus, Search, UserRound, X } from 'lucide-rea
 import { findAccountByEmail, isValidEmail, normalizeEmail, type NewAccountRecord } from './accountEmail'
 import type { Account } from './store'
 
+const MAX_VISIBLE_ACCOUNTS = 3
+
 type AccountLabels = {
   account: string
   accounts: string
@@ -31,8 +33,8 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
   const exactMatch = findAccountByEmail(accounts, query)
   const inlineCreateLabel = labels.createAccount.replace(/^Nuev[oa]\s+/i, 'Crear ')
   const matches = useMemo(() => {
-    if (!normalizedQuery) return accounts.filter(account => account.email).slice(0, 6)
-    return accounts.filter(account => normalizeEmail(account.email || '').includes(normalizedQuery) || account.name.toLowerCase().includes(normalizedQuery)).slice(0, 6)
+    if (!normalizedQuery) return accounts.filter(account => account.email).slice(0, MAX_VISIBLE_ACCOUNTS)
+    return accounts.filter(account => normalizeEmail(account.email || '').includes(normalizedQuery) || account.name.toLowerCase().includes(normalizedQuery)).slice(0, MAX_VISIBLE_ACCOUNTS)
   }, [accounts, normalizedQuery])
 
   const choose = (account: Account) => {
