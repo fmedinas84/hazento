@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
+  type ActivityData,
+  type PrestationData,
   accounts as seedAccounts,
   activities as seedActivities,
   engagements as seedEngagements,
@@ -13,8 +15,8 @@ import {
 export type Account = (typeof seedAccounts)[number]
 export type Opportunity = (typeof seedOpportunities)[number]
 export type Engagement = (typeof seedEngagements)[number]
-export type Prestation = (typeof seedPrestations)[number]
-export type ActivityRecord = (typeof seedActivities)[number]
+export type Prestation = PrestationData
+export type ActivityRecord = ActivityData
 export type Payment = (typeof seedPayments)[number]
 export type PaymentAllocation = (typeof seedPaymentAllocations)[number]
 export type Service = (typeof seedServices)[number]
@@ -48,7 +50,7 @@ type DemoStore = DemoState & {
   resetDemo: () => void
 }
 
-const STORAGE_KEY = 'hazento-demo-v3'
+const STORAGE_KEY = 'hazento-demo-v4'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   accounts: seedAccounts,
@@ -65,6 +67,39 @@ const DemoContext = createContext<DemoStore | null>(null)
 
 function nextId(records: Array<{ id: number }>) {
   return records.reduce((max, record) => Math.max(max, record.id), 0) + 1
+}
+
+function formatActivityDate(isoDate: string) {
+  const parts = new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Santiago' }).formatToParts(new Date(isoDate))
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === type)?.value || ''
+  const month = value('month').replace('.', '')
+  return `${value('day')} ${month.charAt(0).toUpperCase()}${month.slice(1)} · ${value('hour')}:${value('minute')}`
+}
+
+export function syncFollowUpActivity(activities: ActivityRecord[], prestation: Prestation, noteValue: string, savedAt: string) {
+  const note = noteValue.trim()
+  const existing = activities.find(activity => activity.source === 'prestation_follow_up' && activity.prestationId === prestation.id)
+  if (!note) return activities.filter(activity => activity.id !== existing?.id)
+
+  const activity: ActivityRecord = {
+    id: existing?.id ?? nextId(activities),
+    title: 'Seguimiento',
+    relation: '',
+    date: formatActivityDate(savedAt),
+    type: 'Nota',
+    activityType: 'note',
+    status: 'Completada',
+    description: note,
+    accountId: prestation.accountId,
+    prestationId: prestation.id,
+    engagementId: prestation.engagementId,
+    opportunityId: prestation.opportunityId,
+    source: 'prestation_follow_up',
+    createdAt: existing?.createdAt ?? savedAt,
+    updatedAt: savedAt,
+    completedAt: savedAt,
+  }
+  return existing ? activities.map(record => record.id === existing.id ? activity : record) : [activity, ...activities]
 }
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
@@ -115,11 +150,26 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     },
     addPrestation(record) {
       const created: Prestation = { ...record, id: nextId(state.prestations) }
-      setState(current => ({ ...current, prestations: [created, ...current.prestations] }))
+      const savedAt = new Date().toISOString()
+      setState(current => ({
+        ...current,
+        prestations: [created, ...current.prestations],
+        activities: syncFollowUpActivity(current.activities, created, created.followUpNote || '', savedAt),
+      }))
       return created
     },
     updatePrestation(id, changes) {
-      setState(current => ({ ...current, prestations: current.prestations.map(record => record.id === id ? { ...record, ...changes } : record) }))
+      setState(current => {
+        const existing = current.prestations.find(record => record.id === id)
+        if (!existing) return current
+        const updated = { ...existing, ...changes }
+        const shouldSyncFollowUp = Object.prototype.hasOwnProperty.call(changes, 'followUpNote')
+        return {
+          ...current,
+          prestations: current.prestations.map(record => record.id === id ? updated : record),
+          activities: shouldSyncFollowUp ? syncFollowUpActivity(current.activities, updated, updated.followUpNote || '', new Date().toISOString()) : current.activities,
+        }
+      })
     },
     addActivity(record) {
       const created: ActivityRecord = { ...record, id: nextId(state.activities) }
