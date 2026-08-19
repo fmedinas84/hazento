@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
+  type AccountData,
   type ActivityData,
+  type EngagementData,
+  type OpportunityData,
   type PrestationData,
   accounts as seedAccounts,
   activities as seedActivities,
@@ -11,10 +14,11 @@ import {
   prestations as seedPrestations,
   services as seedServices,
 } from './data'
+import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
 
-export type Account = (typeof seedAccounts)[number]
-export type Opportunity = (typeof seedOpportunities)[number]
-export type Engagement = (typeof seedEngagements)[number]
+export type Account = AccountData
+export type Opportunity = OpportunityData
+export type Engagement = EngagementData
 export type Prestation = PrestationData
 export type ActivityRecord = ActivityData
 export type Payment = (typeof seedPayments)[number]
@@ -33,7 +37,7 @@ type DemoState = {
 }
 
 type DemoStore = DemoState & {
-  addAccount: (record: Omit<Account, 'id' | 'initials' | 'color'>) => Account
+  addAccount: (record: NewAccountRecord) => Account
   updateAccount: (id: number, changes: Partial<Account>) => void
   addOpportunity: (record: Omit<Opportunity, 'id'>) => Opportunity
   updateOpportunity: (id: number, changes: Partial<Opportunity>) => void
@@ -61,6 +65,19 @@ const seedState: DemoState = {
   payments: seedPayments,
   paymentAllocations: seedPaymentAllocations,
   services: seedServices,
+}
+
+function migrateDemoState(saved: DemoState): DemoState {
+  const accounts = saved.accounts.map(account => ({ ...account, email: account.email ? normalizeEmail(account.email) : undefined }))
+  const accountIdFor = (name: string) => accounts.find(account => account.name === name)?.id
+  return {
+    ...saved,
+    accounts,
+    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account) })),
+    engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
+    prestations: saved.prestations.map(prestation => ({ ...prestation, accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0 })),
+    activities: saved.activities.map(activity => ({ ...activity, accountId: activity.accountId ?? accountIdFor(activity.relation.split(' · ')[0]) })),
+  }
 }
 
 const DemoContext = createContext<DemoStore | null>(null)
@@ -106,7 +123,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<DemoState>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) as DemoState : seedState
+      return saved ? migrateDemoState(JSON.parse(saved) as DemoState) : seedState
     } catch {
       return seedState
     }
@@ -119,18 +136,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<DemoStore>(() => ({
     ...state,
     addAccount(record) {
-      const names = record.name.trim().split(/\s+/)
-      const created: Account = {
-        ...record,
-        id: nextId(state.accounts),
-        initials: names.slice(0, 2).map(name => name[0]?.toUpperCase()).join(''),
-        color: colors[state.accounts.length % colors.length],
-      }
-      setState(current => ({ ...current, accounts: [created, ...current.accounts] }))
-      return created
+      const result = prepareAccountCreate(state.accounts, record, colors)
+      if (result.created) setState(current => ({ ...current, accounts: [result.account, ...current.accounts] }))
+      return result.account
     },
     updateAccount(id, changes) {
-      setState(current => ({ ...current, accounts: current.accounts.map(record => record.id === id ? { ...record, ...changes } : record) }))
+      setState(current => {
+        const normalizedChanges = Object.prototype.hasOwnProperty.call(changes, 'email') ? { ...changes, email: normalizeEmail(changes.email || '') || undefined } : changes
+        if (normalizedChanges.email && findAccountByEmail(current.accounts, normalizedChanges.email, id)) return current
+        return { ...current, accounts: current.accounts.map(record => record.id === id ? { ...record, ...normalizedChanges } : record) }
+      })
     },
     addOpportunity(record) {
       const created: Opportunity = { ...record, id: nextId(state.opportunities) }
