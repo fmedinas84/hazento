@@ -16,8 +16,9 @@ export function useRepositories() {
   const store = useDemoStore()
 
   return useMemo(() => {
+    const paidPaymentIds = new Set(store.payments.filter(payment => payment.status === 'Pagado').map(payment => payment.id))
     const allocatedFor = (prestationId: number) => store.paymentAllocations
-      .filter(allocation => allocation.prestationId === prestationId)
+      .filter(allocation => allocation.prestationId === prestationId && paidPaymentIds.has(allocation.paymentId))
       .reduce((sum, allocation) => sum + allocation.amount, 0)
 
     const balanceFor = (prestationId: number) => {
@@ -38,13 +39,29 @@ export function useRepositories() {
       payment: statusFor(prestation.id),
     }))
 
+    const getAccountPrestations = (accountId: number) => prestations.filter(prestation => prestation.accountId === accountId)
+    const getAccountPayments = (accountId: number) => store.payments.filter(payment => payment.accountId === accountId)
+    const getAccountAllocatedAmount = (accountId: number) => getAccountPrestations(accountId)
+      .filter(prestation => prestation.status !== 'Cancelada')
+      .reduce((sum, prestation) => sum + allocatedFor(prestation.id), 0)
+    const getAccountWorkedAmount = (accountId: number) => getAccountPrestations(accountId)
+      .filter(prestation => prestation.status !== 'Cancelada')
+      .reduce((sum, prestation) => sum + parseMoney(prestation.amount), 0)
+    const getAccountOutstandingAmount = (accountId: number) => Math.max(0, getAccountWorkedAmount(accountId) - getAccountAllocatedAmount(accountId))
+
     const accounts = {
       records: store.accounts,
       create: store.addAccount,
       update: store.updateAccount,
       findByEmail: (email: string) => findAccountByEmail(store.accounts, email),
       archive: (id: number) => store.updateAccount(id, { status: 'Inactivo', next: '—' }),
+      getPrestations: getAccountPrestations,
+      getPayments: getAccountPayments,
+      getWorkedAmount: getAccountWorkedAmount,
+      getAllocatedAmount: getAccountAllocatedAmount,
+      getOutstandingAmount: getAccountOutstandingAmount,
     }
+    const contacts = { records: store.contacts, create: store.addContact }
     const opportunities = { records: store.opportunities, create: store.addOpportunity, update: store.updateOpportunity }
     const engagements = { records: store.engagements, create: store.addEngagement, update: store.updateEngagement }
     const prestationsRepository = {
@@ -53,6 +70,7 @@ export function useRepositories() {
       update: store.updatePrestation,
       allocatedFor,
       balanceFor,
+      getOutstandingAmountForPrestation: balanceFor,
       statusFor,
     }
     const activities = { records: store.activities, create: store.addActivity, toggle: store.toggleActivity }
@@ -65,6 +83,7 @@ export function useRepositories() {
 
     return {
       accounts: store.accounts,
+      contacts: store.contacts,
       opportunities: store.opportunities,
       engagements: store.engagements,
       prestations,
@@ -74,6 +93,7 @@ export function useRepositories() {
       services: store.services,
       addAccount: store.addAccount,
       updateAccount: store.updateAccount,
+      addContact: store.addContact,
       addOpportunity: store.addOpportunity,
       updateOpportunity: store.updateOpportunity,
       addEngagement: store.addEngagement,
@@ -88,6 +108,7 @@ export function useRepositories() {
       toggleService: store.toggleService,
       resetDemo: store.resetDemo,
       accountRepository: accounts,
+      contactRepository: contacts,
       opportunityRepository: opportunities,
       engagementRepository: engagements,
       prestationRepository: prestationsRepository,

@@ -2,11 +2,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
   type AccountData,
   type ActivityData,
+  type ContactData,
   type EngagementData,
   type OpportunityData,
+  type PaymentData,
   type PrestationData,
   accounts as seedAccounts,
   activities as seedActivities,
+  contacts as seedContacts,
   engagements as seedEngagements,
   opportunities as seedOpportunities,
   paymentAllocations as seedPaymentAllocations,
@@ -17,16 +20,18 @@ import {
 import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
 
 export type Account = AccountData
+export type Contact = ContactData
 export type Opportunity = OpportunityData
 export type Engagement = EngagementData
 export type Prestation = PrestationData
 export type ActivityRecord = ActivityData
-export type Payment = (typeof seedPayments)[number]
+export type Payment = PaymentData
 export type PaymentAllocation = (typeof seedPaymentAllocations)[number]
 export type Service = (typeof seedServices)[number]
 
 type DemoState = {
   accounts: Account[]
+  contacts: Contact[]
   opportunities: Opportunity[]
   engagements: Engagement[]
   prestations: Prestation[]
@@ -39,6 +44,7 @@ type DemoState = {
 type DemoStore = DemoState & {
   addAccount: (record: NewAccountRecord) => Account
   updateAccount: (id: number, changes: Partial<Account>) => void
+  addContact: (record: Omit<Contact, 'id'>) => Contact
   addOpportunity: (record: Omit<Opportunity, 'id'>) => Opportunity
   updateOpportunity: (id: number, changes: Partial<Opportunity>) => void
   addEngagement: (record: Omit<Engagement, 'id'>) => Engagement
@@ -58,6 +64,7 @@ const STORAGE_KEY = 'hazento-demo-v4'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   accounts: seedAccounts,
+  contacts: seedContacts,
   opportunities: seedOpportunities,
   engagements: seedEngagements,
   prestations: seedPrestations,
@@ -73,10 +80,16 @@ function migrateDemoState(saved: DemoState): DemoState {
   return {
     ...saved,
     accounts,
+    contacts: saved.contacts ?? seedContacts,
     opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account) })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
-    prestations: saved.prestations.map(prestation => ({ ...prestation, accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0 })),
+    prestations: saved.prestations.map(prestation => ({
+      ...prestation,
+      accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0,
+      serviceId: prestation.serviceId ?? seedServices.find(service => service.name === prestation.name)?.id,
+    })),
     activities: saved.activities.map(activity => ({ ...activity, accountId: activity.accountId ?? accountIdFor(activity.relation.split(' · ')[0]) })),
+    payments: saved.payments.map(payment => ({ ...payment, accountId: payment.accountId ?? accountIdFor(payment.account) })),
   }
 }
 
@@ -144,28 +157,46 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setState(current => {
         const normalizedChanges = Object.prototype.hasOwnProperty.call(changes, 'email') ? { ...changes, email: normalizeEmail(changes.email || '') || undefined } : changes
         if (normalizedChanges.email && findAccountByEmail(current.accounts, normalizedChanges.email, id)) return current
-        return { ...current, accounts: current.accounts.map(record => record.id === id ? { ...record, ...normalizedChanges } : record) }
+        const previous = current.accounts.find(record => record.id === id)
+        const nextName = normalizedChanges.name?.trim()
+        return {
+          ...current,
+          accounts: current.accounts.map(record => record.id === id ? { ...record, ...normalizedChanges } : record),
+          // Relations remain ID-based; these names are only synchronized display snapshots
+          // for legacy list rows that have not yet moved to repository joins.
+          opportunities: current.opportunities.map(record => record.accountId === id && nextName ? { ...record, account: nextName, contact: record.contact === previous?.name ? nextName : record.contact } : record),
+          engagements: current.engagements.map(record => record.accountId === id && nextName ? { ...record, account: nextName } : record),
+          prestations: current.prestations.map(record => record.accountId === id && nextName ? { ...record, account: nextName } : record),
+          payments: current.payments.map(record => record.accountId === id && nextName ? { ...record, account: nextName } : record),
+        }
       })
     },
+    addContact(record) {
+      const created: Contact = { ...record, id: nextId(state.contacts) }
+      setState(current => ({ ...current, contacts: [...current.contacts, created] }))
+      return created
+    },
     addOpportunity(record) {
-      const created: Opportunity = { ...record, id: nextId(state.opportunities) }
+      const savedAt = new Date().toISOString()
+      const created: Opportunity = { ...record, id: nextId(state.opportunities), createdAt: record.createdAt ?? savedAt, updatedAt: record.updatedAt ?? savedAt }
       setState(current => ({ ...current, opportunities: [created, ...current.opportunities] }))
       return created
     },
     updateOpportunity(id, changes) {
-      setState(current => ({ ...current, opportunities: current.opportunities.map(record => record.id === id ? { ...record, ...changes } : record) }))
+      setState(current => ({ ...current, opportunities: current.opportunities.map(record => record.id === id ? { ...record, ...changes, updatedAt: new Date().toISOString() } : record) }))
     },
     addEngagement(record) {
-      const created: Engagement = { ...record, id: nextId(state.engagements) }
+      const savedAt = new Date().toISOString()
+      const created: Engagement = { ...record, id: nextId(state.engagements), createdAt: record.createdAt ?? savedAt, updatedAt: record.updatedAt ?? savedAt }
       setState(current => ({ ...current, engagements: [created, ...current.engagements] }))
       return created
     },
     updateEngagement(id, changes) {
-      setState(current => ({ ...current, engagements: current.engagements.map(record => record.id === id ? { ...record, ...changes } : record) }))
+      setState(current => ({ ...current, engagements: current.engagements.map(record => record.id === id ? { ...record, ...changes, updatedAt: new Date().toISOString() } : record) }))
     },
     addPrestation(record) {
-      const created: Prestation = { ...record, id: nextId(state.prestations) }
       const savedAt = new Date().toISOString()
+      const created: Prestation = { ...record, id: nextId(state.prestations), createdAt: record.createdAt ?? savedAt }
       setState(current => ({
         ...current,
         prestations: [created, ...current.prestations],
@@ -187,7 +218,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       })
     },
     addActivity(record) {
-      const created: ActivityRecord = { ...record, id: nextId(state.activities) }
+      const created: ActivityRecord = { ...record, id: nextId(state.activities), createdAt: record.createdAt ?? new Date().toISOString() }
       setState(current => ({ ...current, activities: [created, ...current.activities] }))
       return created
     },
@@ -195,7 +226,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setState(current => ({ ...current, activities: current.activities.map(record => record.id === id ? { ...record, status: record.status === 'Completada' ? 'Pendiente' : 'Completada' } : record) }))
     },
     addPayment(record, allocations) {
-      const created: Payment = { ...record, id: nextId(state.payments) }
+      const created: Payment = { ...record, id: nextId(state.payments), createdAt: record.createdAt ?? new Date().toISOString() }
       const firstAllocationId = nextId(state.paymentAllocations)
       const createdAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
         id: firstAllocationId + index,
