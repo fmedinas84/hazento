@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import type { OrganizationData } from './data'
 import { findOrganizationByName, type NewOrganizationRecord } from './organizationName'
 
-type Labels = { organization: string; createOrganization: string }
+type Labels = { organization: string; organizationRelationship: string; createOrganization: string }
 
 export function OrganizationSelector({ organizations, labels, selectedId, onSelect, onCreate }: {
   organizations: OrganizationData[]
@@ -40,9 +40,9 @@ export function OrganizationSelector({ organizations, labels, selectedId, onSele
   }
 
   return <div className="organization-selector">
-    <span>{labels.organization}</span>
+    <span>{labels.organizationRelationship}</span>
     <button type="button" className="organization-trigger" onClick={() => setOpen(value => !value)}>
-      <Building2 size={16}/><span>{selected?.name || `${labels.organization} opcional`}</span>
+      <Building2 size={16}/><span>{selected?.name || 'Organización opcional'}</span>
       {selected ? <X size={15} onClick={event => { event.stopPropagation(); choose(undefined) }}/> : <ChevronDown size={15}/>} 
     </button>
     {open && <div className="organization-popover">
