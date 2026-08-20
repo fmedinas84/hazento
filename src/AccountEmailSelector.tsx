@@ -13,6 +13,7 @@ type AccountLabels = {
   accounts: string
   createAccount: string
   organization: string
+  organizationRelationship: string
   createOrganization: string
 }
 
@@ -133,7 +134,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
         <label><span>Nombre de la persona *</span><input value={newName} onChange={event => { setNewName(event.target.value); setCreateError('') }} required autoFocus /></label>
         <label><span>Teléfono</span><input value={newPhone} onChange={event => setNewPhone(event.target.value)} autoComplete="tel" /></label>
         <OrganizationSelector labels={labels} organizations={organizations} selectedId={organizationId} onSelect={organization => setOrganizationId(organization?.id)} onCreate={onCreateOrganization}/>
-        <label><span>Cargo</span><input value={role} onChange={event => setRole(event.target.value)} placeholder="Opcional" disabled={!organizationId}/></label>
+        <label><span>Cargo / Rol</span><input value={role} onChange={event => setRole(event.target.value)} placeholder="Opcional" disabled={!organizationId}/></label>
         {createError && <p className="form-error">{createError}</p>}
         {duplicate && <div className="duplicate-account"><b>Ya existe {labels.account.toLowerCase()} con este email.</b><span>{duplicate.name}<small>{duplicate.email}</small></span><button type="button" className="secondary-btn" onClick={() => choose(duplicate)}>Usar este {labels.account.toLowerCase()}</button></div>}
         <footer><button type="button" className="ghost-btn" onClick={() => { setCreating(false); setOpen(true); setDuplicate(null) }}>Volver</button><button type="button" className="primary-btn" onClick={createAccount}>Crear y seleccionar</button></footer>
