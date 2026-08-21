@@ -142,6 +142,7 @@ export type PrestationData = {
   account: string
   name: string
   description?: string
+  durationMinutes?: number
   origin: string
   status: string
   amount: string
