@@ -288,7 +288,7 @@ function Dashboard({ labels, go, onCreatePrestation }: { labels: typeof vertical
   const previousPaidAmount = revenueForPeriod(previousPeriodStart, previousPeriodEnd)
   const revenueVariation = previousPaidAmount > 0 ? ((paidAmount - previousPaidAmount) / previousPaidAmount) * 100 : paidAmount > 0 ? 100 : 0
   const previousMonthName = new Intl.DateTimeFormat('es-CL', { month: 'long' }).format(previousPeriodStart)
-  const revenueTrend = `${revenueVariation.toLocaleString('es-CL', { maximumFractionDigits: 1 })}% vs el 1–${now.getDate()} de ${previousMonthName}`
+  const revenueTrend = `${revenueVariation > 0 ? '+' : ''}${revenueVariation.toLocaleString('es-CL', { maximumFractionDigits: 1 })}% vs el 1–${now.getDate()} de ${previousMonthName}`
   const completedPrestations = prestations.filter(prestation => prestation.status === 'Completada')
   const averageTicket = completedPrestations.length ? completedPrestations.reduce((sum, prestation) => sum + parseMoney(prestation.amount), 0) / completedPrestations.length : 0
   const scheduledRemaining = prestations.filter(prestation => prestation.status === 'Programada' && isDateBetween(parseBusinessDate(prestation.date, now.getFullYear()), todayStart, monthEnd))
