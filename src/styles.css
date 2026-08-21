@@ -62,8 +62,8 @@
 
 .form-inline-pair{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .schedule-summary{margin:5px 0 0;color:var(--muted);font-size:10px}
-.metric-card .metric-meta-positive{color:var(--green)}
-.metric-card .metric-meta-negative{color:#8f3030}
+.metrics-grid .metric-card .metric-meta-positive{color:var(--green)}
+.metrics-grid .metric-card .metric-meta-negative{color:#8f3030}
 
 @media(max-width:600px){
   .topbar{gap:10px}
