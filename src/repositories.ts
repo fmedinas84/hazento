@@ -88,6 +88,7 @@ export function useRepositories() {
       records: store.payments,
       allocations: store.paymentAllocations,
       create: store.addPayment,
+      update: store.updatePayment,
     }
     const services = { records: store.services, create: store.addService, update: store.updateService, toggle: store.toggleService }
 
@@ -116,6 +117,7 @@ export function useRepositories() {
       addActivity: store.addActivity,
       toggleActivity: store.toggleActivity,
       addPayment: store.addPayment,
+      updatePayment: store.updatePayment,
       addService: store.addService,
       updateService: store.updateService,
       toggleService: store.toggleService,
