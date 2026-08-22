@@ -143,3 +143,23 @@ La Public Key y el Access Token deben provenir de la misma aplicación y del mis
 ### Limitación temporal por falta de Auth
 
 Esta integración puede probarse de punta a punta en modo test, pero aún no concede beneficios Plus de producción. Sin Supabase Auth no existe una identidad server-side durable que vincule de forma inequívoca la suscripción con un workspace. La futura integración deberá persistir `workspace_id`, `preapproval_id`, estado, fechas y eventos procesados en PostgreSQL, protegidos por RLS, y reemplazar la capacidad demo por autorización autenticada. Hasta entonces Mercado Pago es la fuente autoritativa y no se confía en `localStorage` para otorgar acceso Plus.
+
+## Modelo de suscripciones por workspace
+
+La migración `supabase/migrations/002_workspace_subscriptions.sql` prepara la persistencia definitiva de planes sin modificar Auth ni conectar todavía el frontend:
+
+```text
+auth.users
+├── profiles (identidad de la persona)
+└── workspace_members
+    └── workspaces (negocio y límite multitenant)
+        └── subscriptions (plan contratado por el negocio)
+```
+
+La suscripción pertenece al workspace, no al profile. Esto permite que varios miembros compartan el plan de un negocio y que un usuario participe en workspaces con planes independientes.
+
+Si no existe una fila en `subscriptions`, el workspace se considera **Free** y no se crea ningún objeto en Mercado Pago. Una fila `plan = 'plus'` representa la intención o suscripción pagada; `pending` no concede acceso Plus. El precio de Plus ($4.990 CLP/mes) permanece en la configuración del producto.
+
+Los miembros autenticados solo tienen lectura mediante `is_workspace_member(workspace_id)`. `plan`, `status`, referencias del proveedor y períodos se reservan para procesos server-side que reaccionen a respuestas o webhooks verificados. No se almacenan tarjetas, CVV ni tokens sensibles.
+
+Una evolución posterior podrá agregar `subscription_payments` con `subscription_id`, `provider_payment_id`, monto, moneda, estado y fecha de pago. Estos cobros de Hazento permanecerán separados de `payments` y `payment_allocations`, que representan pagos operativos recibidos por los profesionales.
