@@ -62,6 +62,7 @@ type DemoStore = DemoState & {
   addActivity: (record: Omit<ActivityRecord, 'id'>) => ActivityRecord
   toggleActivity: (id: number) => void
   addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>) => Payment
+  updatePayment: (id: number, changes: Partial<Payment>, allocations: Array<{ prestationId: number; amount: number }>) => void
   addService: (record: Omit<Service, 'id'>) => Service
   updateService: (id: number, changes: Partial<Service>) => void
   toggleService: (id: number) => void
@@ -94,7 +95,7 @@ function migrateDemoState(saved: DemoState): DemoState {
     accounts,
     organizations: saved.organizations ?? seedOrganizations,
     contacts: saved.contacts ?? seedContacts,
-    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account) })),
+    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account), status: opportunity.status ?? (['Ganada', 'Perdida'].includes(opportunity.stage) ? opportunity.stage as 'Ganada' | 'Perdida' : 'Abierta') })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
     prestations: saved.prestations.map(prestation => ({
       ...prestation,
@@ -270,6 +271,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         paymentAllocations: [...current.paymentAllocations, ...createdAllocations],
       }))
       return created
+    },
+    updatePayment(id, changes, allocations) {
+      setState(current => {
+        const firstAllocationId = nextId(current.paymentAllocations.filter(allocation => allocation.paymentId !== id))
+        const replacementAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
+          id: firstAllocationId + index,
+          paymentId: id,
+          prestationId: allocation.prestationId,
+          amount: allocation.amount,
+        }))
+        return {
+          ...current,
+          payments: current.payments.map(payment => payment.id === id ? { ...payment, ...changes } : payment),
+          paymentAllocations: [...current.paymentAllocations.filter(allocation => allocation.paymentId !== id), ...replacementAllocations],
+        }
+      })
     },
     addService(record) {
       const created: Service = { ...record, id: nextId(state.services) }

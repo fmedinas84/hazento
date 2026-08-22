@@ -111,6 +111,7 @@ export type OpportunityData = {
   contact: string
   last: string
   stage: string
+  status?: 'Abierta' | 'Ganada' | 'Perdida'
   createdAt?: string
   updatedAt?: string
 }
@@ -225,7 +226,7 @@ export const prestations: PrestationData[] = [
 ]
 
 export const opportunities: OpportunityData[] = [
-  { id: 1, accountId: 5, account: 'Daniela Silva', title: 'Evaluación y plan inicial', amount: '$180.000', close: '24 Ago', contact: 'Daniela Silva', last: 'Hace 2 días', stage: 'Nuevo', createdAt: '2026-08-10T14:00:00-04:00', updatedAt: '2026-08-16T11:00:00-04:00' },
+  { id: 1, accountId: 5, account: 'Daniela Silva', title: 'Evaluación y plan inicial', amount: '$180.000', close: '24 Ago', contact: 'Daniela Silva', last: 'Hace 2 días', stage: 'Nuevo', status: 'Abierta', createdAt: '2026-08-10T14:00:00-04:00', updatedAt: '2026-08-16T11:00:00-04:00' },
   { id: 2, accountId: 2, account: 'Juan Soto', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Juan Soto', last: 'Ayer', stage: 'Contactado', createdAt: '2026-08-08T10:00:00-04:00', updatedAt: '2026-08-17T16:00:00-04:00' },
   { id: 3, accountId: 3, account: 'Carolina Díaz', title: 'Evaluación y seguimiento', amount: '$165.000', close: '20 Ago', contact: 'Carolina Díaz', last: 'Hoy', stage: 'Contactado', createdAt: '2026-08-07T12:00:00-04:00', updatedAt: '2026-08-18T09:15:00-04:00' },
   { id: 4, accountId: 4, account: 'Pedro González', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Pedro González', last: 'Hace 3 días', stage: 'Propuesta', createdAt: '2026-08-04T15:00:00-04:00', updatedAt: '2026-08-15T17:30:00-04:00' },
