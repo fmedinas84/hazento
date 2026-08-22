@@ -183,6 +183,34 @@ export type PaymentData = {
   createdAt?: string
 }
 
+export type DocumentData = {
+  id: number
+  workspaceId: number
+  accountId: number
+  number?: string
+  taxStatus: 'Borrador' | 'Emitida' | 'Anulada'
+  totalAmount: number
+  date: string
+}
+
+export type DocumentPaymentAllocationData = {
+  id: number
+  paymentId: number
+  documentId: number
+  amount: number
+}
+
+export type DocumentAdjustmentData = {
+  id: number
+  documentId: number
+  amount: number
+  type: 'Descuento' | 'Saldo condonado'
+  reason: string
+  date: string
+  recordedBy: string
+  taxCorrectionStatus: 'No requerida' | 'Pendiente' | 'Resuelta'
+}
+
 export const accounts: AccountData[] = [
   { id: 1, workspaceId: 1, initials: 'MP', name: 'María Pérez', firstName: 'María', lastName: 'Pérez', displayName: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
   { id: 2, workspaceId: 1, initials: 'JS', name: 'Juan Soto', firstName: 'Juan', lastName: 'Soto', displayName: 'Juan Soto', organizationId: 1, role: 'Gerente Comercial', type: 'Persona', status: 'Activo', last: 'Ayer', next: '19 Ago', income: '$175.000', pending: '$70.000', email: 'juan@acme.cl', phone: '+56 9 6732 2210', rut: '15.931.240-8', color: '#ede9ff' },
@@ -267,6 +295,19 @@ export const paymentAllocations = [
   { id: 5, paymentId: 5, prestationId: 12, amount: 35000 },
   { id: 6, paymentId: 5, prestationId: 1, amount: 17500 },
 ]
+
+export const documents: DocumentData[] = [
+  { id: 1, workspaceId: 1, accountId: 2, number: 'B-101', taxStatus: 'Emitida', totalAmount: 30000, date: '14 Ago' },
+  { id: 2, workspaceId: 1, accountId: 1, number: 'B-102', taxStatus: 'Emitida', totalAmount: 35000, date: '17 Ago' },
+  { id: 3, workspaceId: 1, accountId: 3, taxStatus: 'Borrador', totalAmount: 45000, date: '18 Ago' },
+]
+
+export const documentPaymentAllocations: DocumentPaymentAllocationData[] = [
+  { id: 1, paymentId: 2, documentId: 1, amount: 15000 },
+  { id: 2, paymentId: 3, documentId: 2, amount: 35000 },
+]
+
+export const documentAdjustments: DocumentAdjustmentData[] = []
 
 export const services = [
   { id: 1, name: 'Sesión individual', description: 'Sesión de atención individual', duration: '60 min', price: '$35.000', active: true },

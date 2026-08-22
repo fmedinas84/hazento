@@ -19,8 +19,9 @@ import { resolvePrestationName } from './prestationName'
 import { durationOptions, formatDuration, serviceDurationMinutes } from './duration'
 import { completedWord, verticalizeEngagementDetail } from './verticalText'
 import { BillingSettings } from './BillingSettings'
+import { DocumentsPage } from './DocumentsPage'
 
-type Page = 'dashboard' | 'accounts' | 'account' | 'opportunities' | 'opportunity' | 'agenda' | 'work' | 'engagement' | 'prestations' | 'activities' | 'payments' | 'services' | 'settings'
+type Page = 'dashboard' | 'accounts' | 'account' | 'opportunities' | 'opportunity' | 'agenda' | 'work' | 'engagement' | 'prestations' | 'activities' | 'payments' | 'documents' | 'services' | 'settings'
 type Navigate = (page: Page, query?: Record<string, string | number>) => void
 type Labels = typeof verticalLabels[Vertical]
 const newAccountLabel = (labels: Labels) => labels.createAccount
@@ -72,7 +73,7 @@ const cls = (...parts: Array<string | false | undefined>) => parts.filter(Boolea
 const pagePaths: Record<Page, string> = {
   dashboard: '/', accounts: '/cuentas', account: '/cuentas/detalle', opportunities: '/oportunidades',
   opportunity: '/oportunidades/detalle', agenda: '/agenda', work: '/trabajo', engagement: '/trabajo/detalle',
-  prestations: '/prestaciones', activities: '/actividades', payments: '/pagos', services: '/servicios', settings: '/configuracion',
+  prestations: '/prestaciones', activities: '/actividades', payments: '/pagos', documents: '/boletas', services: '/servicios', settings: '/configuracion',
 }
 
 function pageFromLocation(): Page {
@@ -195,6 +196,7 @@ function CreateForm({ type, labels, onDone, initialAccountId, initialEngagementI
   const [serviceId, setServiceId] = useState(store.services[0]?.id || 0)
   const [organizationId, setOrganizationId] = useState<number | undefined>()
   const [allocated, setAllocated] = useState<number[]>([])
+  const [documentAllocationAmounts, setDocumentAllocationAmounts] = useState<Record<number, string>>({})
   const [accountError, setAccountError] = useState('')
   const [duplicateAccountId, setDuplicateAccountId] = useState<number | null>(null)
   const selectedService = store.services.find(service => service.id === serviceId)
@@ -205,6 +207,7 @@ function CreateForm({ type, labels, onDone, initialAccountId, initialEngagementI
   const inheritedEngagement = store.engagements.find(engagement => engagement.id === initialEngagementId)
   const accountName = selectedAccount?.name || ''
   const pending = store.prestations.filter(prestation => prestation.accountId === accountId && prestation.payment !== 'Pagado')
+  const pendingDocuments = store.documents.filter(document => document.accountId === accountId && document.taxStatus !== 'Anulada' && (store.documentRepository.summary(document.id)?.outstanding || 0) > 0)
   const accountOpportunities = selectedAccount ? store.opportunities.filter(opportunity => opportunity.accountId === selectedAccount.id || (!opportunity.accountId && opportunity.account === selectedAccount.name)) : []
   const accountEngagements = selectedAccount ? store.engagements.filter(engagement => engagement.accountId === selectedAccount.id || (!engagement.accountId && engagement.account === selectedAccount.name)) : []
   const accountPrestations = selectedAccount ? store.prestations.filter(prestation => prestation.accountId === selectedAccount.id) : []
@@ -244,7 +247,10 @@ function CreateForm({ type, labels, onDone, initialAccountId, initialEngagementI
         remaining -= amount
         return { prestationId, amount }
       }).filter(allocation => allocation.amount > 0)
-      store.addPayment({ accountId: selectedAccount?.id, date: 'Hoy', account: accountName, amount: formatMoney(parseMoney(String(values.amount || '$0'))), method: String(values.method || 'Transferencia'), status: String(values.status || 'Pagado'), allocations: allocations.length ? `${allocations.length} ${labels.prestations.toLowerCase()}` : 'Sin asignar' }, allocations)
+      const documentAllocations = Object.entries(documentAllocationAmounts).map(([documentId, amount]) => ({ documentId: Number(documentId), amount: parseMoney(amount) })).filter(allocation => allocation.amount > 0)
+      const totalDocumentAllocated = documentAllocations.reduce((sum, allocation) => sum + allocation.amount, 0)
+      if (totalDocumentAllocated > parseMoney(String(values.amount || '$0'))) { setAccountError('Las asignaciones superan el monto del pago.'); return }
+      store.addPayment({ accountId: selectedAccount?.id, date: 'Hoy', account: accountName, amount: formatMoney(parseMoney(String(values.amount || '$0'))), method: String(values.method || 'Transferencia'), status: String(values.status || 'Pagado'), allocations: documentAllocations.length ? `${documentAllocations.length} boletas` : allocations.length ? `${allocations.length} ${labels.prestations.toLowerCase()}` : 'Sin asignar' }, allocations, documentAllocations)
     } else {
       store.addService({ name, description: String(values.description || ''), duration: `${String(values.duration || '60')} min`, price: String(values.amount || '$0'), active: true })
     }
@@ -265,7 +271,7 @@ function CreateForm({ type, labels, onDone, initialAccountId, initialEngagementI
       {mode === 'payment' && <><label><span>Monto *</span><input name="amount" placeholder="$0" required autoFocus /></label><label><span>Fecha</span><input name="date" type="date" defaultValue="2026-08-17" /></label><label><span>Método</span><select name="method"><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option></select></label><label><span>Estado</span><select name="status"><option>Pagado</option><option>Pendiente</option></select></label></>}
       {mode === 'service' && <><label><span>Nombre *</span><input name="name" required autoFocus placeholder={labels.service} /></label><label><span>Precio sugerido</span><input name="amount" required placeholder="$0" /></label><label><span>Duración (min)</span><input name="duration" type="number" defaultValue="60" /></label><label><span>Descripción</span><input name="description" /></label></>}
     </div>
-    {mode === 'payment' && <div className="allocation-box"><div><strong>Asignar a {labels.prestations.toLowerCase()} pendientes</strong><p>El saldo de pago se calcula desde estas asignaciones; no se duplica en la prestación.</p></div>{pending.length ? pending.map(prestation => <label className="allocation" key={prestation.id}><input type="checkbox" checked={allocated.includes(prestation.id)} onChange={() => setAllocated(current => current.includes(prestation.id) ? current.filter(id => id !== prestation.id) : [...current, prestation.id])} /><span>{prestation.date}<b>{prestation.name}</b></span><strong>{prestation.amount}</strong></label>) : <p className="form-empty">Esta cuenta no tiene prestaciones pendientes.</p>}</div>}
+    {mode === 'payment' && <><div className="allocation-box"><div><strong>Asignar a boletas pendientes</strong><p>Puedes distribuir el pago y mantener una parte sin asignar.</p></div>{pendingDocuments.length ? pendingDocuments.map(document => { const summary=store.documentRepository.summary(document.id); return <label className="document-allocation" key={document.id}><span>{document.number || 'Borrador'}<b>{document.date} · Saldo {formatMoney(summary?.outstanding || 0)}</b></span><input aria-label={`Monto para boleta ${document.number || document.id}`} inputMode="numeric" placeholder="$0" value={documentAllocationAmounts[document.id] || ''} onChange={event=>setDocumentAllocationAmounts(current=>({...current,[document.id]:event.target.value}))}/></label> }) : <p className="form-empty">Esta persona no tiene boletas pendientes.</p>}</div><details className="legacy-allocation"><summary>Asignar directamente a {labels.prestations.toLowerCase()}</summary><div className="allocation-box">{pending.length ? pending.map(prestation => <label className="allocation" key={prestation.id}><input type="checkbox" checked={allocated.includes(prestation.id)} onChange={() => setAllocated(current => current.includes(prestation.id) ? current.filter(id => id !== prestation.id) : [...current, prestation.id])} /><span>{prestation.date}<b>{prestation.name}</b></span><strong>{prestation.amount}</strong></label>) : <p className="form-empty">Esta cuenta no tiene prestaciones pendientes.</p>}</div></details></>}
     <footer className="modal-actions"><button type="button" className="ghost-btn" onClick={onDone}>Cancelar</button><button className="primary-btn">Guardar</button></footer>
   </form>
 }
@@ -443,8 +449,21 @@ function ActivitiesPage({ labels, go, onCreate }: { labels: Labels; go: Navigate
   </>
 }
 
+function PaymentEditModal({ paymentId, onClose }: { paymentId: number; onClose: () => void }) {
+  const repository = useRepositories()
+  const payment = repository.payments.find(item => item.id === paymentId)
+  const existing = repository.documentPaymentAllocations.filter(item => item.paymentId === paymentId)
+  const [amounts, setAmounts] = useState<Record<number,string>>(()=>Object.fromEntries(existing.map(item=>[item.documentId,String(item.amount)])))
+  const [error,setError]=useState('')
+  if (!payment) return null
+  const documents = repository.documents.filter(document => document.accountId === payment.accountId && document.taxStatus !== 'Anulada')
+  const save=(event:React.FormEvent<HTMLFormElement>)=>{event.preventDefault();const values=Object.fromEntries(new FormData(event.currentTarget).entries());try{repository.paymentRepository.updateWithDocumentAllocations(payment.id,{amount:formatMoney(parseMoney(String(values.amount))),date:String(values.date),method:String(values.method),status:String(values.status)},Object.entries(amounts).map(([documentId,amount])=>({documentId:Number(documentId),amount:parseMoney(amount)})).filter(item=>item.amount>0));onClose()}catch(cause){setError(cause instanceof Error?cause.message:'No pudimos actualizar el pago.')}}
+  return <Modal title="Editar pago" subtitle="Los saldos se recalculan desde las asignaciones, sin duplicar el pago." onClose={onClose} wide><form onSubmit={save}><div className="form-grid"><label><span>Monto</span><input name="amount" required defaultValue={payment.amount}/></label><label><span>Fecha</span><input name="date" required defaultValue={payment.date}/></label><label><span>Método</span><select name="method" defaultValue={payment.method}><option>Transferencia</option><option>Efectivo</option><option>Tarjeta</option></select></label><label><span>Estado</span><select name="status" defaultValue={payment.status}><option>Pagado</option><option>Pendiente</option><option>Cancelado</option></select></label></div><div className="allocation-box"><div><strong>Asignaciones a boletas</strong><p>Edita montos o déjalos en cero para quitar la asignación.</p></div>{documents.map(document=>{const summary=repository.documentRepository.summary(document.id);return <label className="document-allocation" key={document.id}><span>{document.number||'Borrador'}<b>Saldo actual {formatMoney(summary?.outstanding||0)}</b></span><input aria-label={`Monto para boleta ${document.number||document.id}`} value={amounts[document.id]||''} onChange={event=>setAmounts(current=>({...current,[document.id]:event.target.value}))} placeholder="$0"/></label>})}</div>{error&&<p className="form-error full-label">{error}</p>}<footer className="modal-actions"><button type="button" className="ghost-btn" onClick={onClose}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer></form></Modal>
+}
+
 function RepositoryPaymentsPage({ labels, onCreate }: { labels: Labels; onCreate: () => void }) {
   const repositories = useRepositories()
+  const [editing,setEditing]=useState<number|null>(null)
   const requested = new URLSearchParams(window.location.search).get('status')
   const [active, setActive] = useState(requested === 'Pendientes' ? 'Pendientes' : 'Registrados')
   const pending = repositories.prestations.filter(item => repositories.prestationRepository.balanceFor(item.id) > 0)
@@ -454,8 +473,8 @@ function RepositoryPaymentsPage({ labels, onCreate }: { labels: Labels; onCreate
     <PageHeader title="Pagos" description={`Responde quién te debe y asigna cada cobro a sus ${labels.prestations.toLowerCase()} pendientes.`} action="Registrar pago" onAction={onCreate}/>
     <div className="metrics-grid three"><MetricCard label="Cobrado" value={formatMoney(totalPaid)} meta="Según pagos registrados" icon={WalletCards} tone="green"/><MetricCard label="Por cobrar" value={formatMoney(totalPending)} meta={`${pending.length} ${labels.prestations.toLowerCase()} con saldo`} icon={Clock3} tone="orange"/><MetricCard label="Pagos registrados" value={String(repositories.payments.length)} meta={`${repositories.paymentAllocations.length} asignaciones`} icon={CreditCard} tone="blue"/></div>
     <div className="tabs standalone">{['Registrados','Pendientes'].map(tab => <button className={active === tab ? 'active' : ''} onClick={() => setActive(tab)} key={tab}>{tab}{tab === 'Pendientes' && <span>{pending.length}</span>}</button>)}</div>
-    <div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>Monto</th><th>{active === 'Pendientes' ? labels.prestation : 'Método'}</th><th>Estado</th><th>{active === 'Pendientes' ? 'Saldo' : 'Asignación'}</th></tr></thead><tbody>{active === 'Pendientes' ? pending.map(prestation => <tr key={prestation.id}><td>{prestation.date}</td><td><b>{prestation.account}</b></td><td className="number">{prestation.amount}</td><td>{prestation.name}</td><td><StatusBadge>{prestation.payment}</StatusBadge></td><td className="number">{formatMoney(repositories.prestationRepository.balanceFor(prestation.id))}</td></tr>) : repositories.payments.map(payment => <tr key={payment.id}><td>{payment.date}</td><td><b>{payment.account}</b></td><td className="number">{payment.amount}</td><td>{payment.method}</td><td><StatusBadge>{payment.status}</StatusBadge></td><td>{payment.allocations}</td></tr>)}</tbody></table></div>
-  </>
+    <div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>Monto</th><th>{active === 'Pendientes' ? labels.prestation : 'Método'}</th><th>Estado</th><th>{active === 'Pendientes' ? 'Saldo' : 'Asignación'}</th>{active==='Registrados'&&<th>Acciones</th>}</tr></thead><tbody>{active === 'Pendientes' ? pending.map(prestation => <tr key={prestation.id}><td>{prestation.date}</td><td><b>{prestation.account}</b></td><td className="number">{prestation.amount}</td><td>{prestation.name}</td><td><StatusBadge>{prestation.payment}</StatusBadge></td><td className="number">{formatMoney(repositories.prestationRepository.balanceFor(prestation.id))}</td></tr>) : repositories.payments.map(payment => <tr key={payment.id}><td>{payment.date}</td><td><b>{payment.account}</b></td><td className="number">{payment.amount}</td><td>{payment.method}</td><td><StatusBadge>{payment.status}</StatusBadge></td><td>{payment.allocations}</td><td><button className="icon-row-action" aria-label={`Editar pago de ${payment.account}`} onClick={()=>setEditing(payment.id)}><Pencil size={14}/></button></td></tr>)}</tbody></table></div>
+    {editing&&<PaymentEditModal paymentId={editing} onClose={()=>setEditing(null)}/>}</>
 }
 
 function PaymentsPage({ labels, onCreate }: { labels: typeof verticalLabels[Vertical]; onCreate:()=>void }) { const store=useRepositories();const requested=new URLSearchParams(window.location.search).get('status');const [active,setActive]=useState(requested==='Pendientes'?'Pendientes':'Registrados');const pending=store.prestations.filter(item=>item.payment!=='Pagado');const totalPending=pending.reduce((sum,item)=>sum+Number(item.amount.replace(/\D/g,'')),0);return <><PageHeader title="Pagos" description={`Responde quién te debe y asigna cada cobro a sus ${labels.prestations.toLowerCase()} pendientes.`} action="Registrar pago" onAction={onCreate}/><div className="metrics-grid three"><MetricCard label="Cobrado este mes" value="$3.420.000" meta="↗ 12% vs. mes anterior" icon={WalletCards} tone="green"/><MetricCard label="Por cobrar" value={`$${totalPending.toLocaleString('es-CL')}`} meta={`${pending.length} ${labels.prestations.toLowerCase()} con saldo`} icon={Clock3} tone="orange"/><MetricCard label="Pagos registrados" value={String(store.payments.length)} meta="Historial disponible" icon={CreditCard} tone="blue"/></div><div className="tabs standalone">{['Registrados','Pendientes'].map(tab=><button className={active===tab?'active':''} onClick={()=>setActive(tab)} key={tab}>{tab}{tab==='Pendientes'&&<span>{pending.length}</span>}</button>)}</div><div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>Monto</th><th>{active==='Pendientes'?labels.prestation:'Método'}</th><th>Estado</th><th>{active==='Pendientes'?'Origen':'Asignación'}</th></tr></thead><tbody>{active==='Pendientes'?pending.map(p=><tr key={p.id}><td>{p.date}</td><td><b>{p.account}</b></td><td className="number">{p.amount}</td><td>{p.name}</td><td><StatusBadge>{p.payment}</StatusBadge></td><td>{p.origin}</td></tr>):store.payments.map(p=><tr key={p.id}><td>{p.date}</td><td><b>{p.account}</b></td><td className="number">{p.amount}</td><td>{p.method}</td><td><StatusBadge>{p.status}</StatusBadge></td><td>{p.allocations}</td></tr>)}</tbody></table></div></> }
@@ -507,7 +526,7 @@ function App() {
     ...store.prestations.filter(item=>(item.name+' '+item.account).toLowerCase().includes(normalized)).map(item=>({kind:labels.prestation,name:item.name,context:item.account,Icon:CalendarDays,page:'prestations' as Page,query:{id:item.id}})),
   ].slice(0,8):[]
   const nav=[
-    ['dashboard','Inicio',LayoutDashboard],['accounts',labels.accounts,UsersRound],['opportunities','Oportunidades',Target],['agenda',labels.planningLabel,CalendarDays],['work',labels.engagements,BriefcaseBusiness],['prestations',labels.navigationPrestation,FileCheck2],['activities','Actividades',ListChecks],['payments','Pagos',CreditCard],['services',labels.services,Grid2X2],['settings','Configuración',Settings],
+    ['dashboard','Inicio',LayoutDashboard],['accounts',labels.accounts,UsersRound],['opportunities','Oportunidades',Target],['agenda',labels.planningLabel,CalendarDays],['work',labels.engagements,BriefcaseBusiness],['prestations',labels.navigationPrestation,FileCheck2],['activities','Actividades',ListChecks],['payments','Pagos',CreditCard],['documents','Boletas',FileText],['services',labels.services,Grid2X2],['settings','Configuración',Settings],
   ] as const
   const title = useMemo(()=>nav.find(n=>n[0]===page)?.[1] || 'Hazento',[page,labels])
   const openCreate=(type?:string,accountId?:number,engagementId?:number)=>{setCreateType(type||newPrestationLabel(labels));setCreateAccountId(accountId);setCreateEngagementId(engagementId);setCreateOpen(true);setCreateMenu(false)}
@@ -529,6 +548,7 @@ function App() {
       {page==='prestations'&&<PrestationsPage labels={labels} onCreate={()=>openCreate(newPrestationLabel(labels))}/>}
       {page==='activities'&&<ActivitiesPage labels={labels} go={go} onCreate={()=>openCreate('Nueva actividad')}/>}
       {page==='payments'&&<RepositoryPaymentsPage labels={labels} onCreate={()=>openCreate('Registrar pago')}/>}
+      {page==='documents'&&<DocumentsPage/>}
       {page==='services'&&<RepositoryServicesPage labels={labels} onCreate={()=>openCreate(`Crear ${labels.service.toLowerCase()}`)}/>}
       {page==='settings'&&<RepositorySettingsPage vertical={vertical} setVertical={setVertical} notify={notify}/>}
     </main></div>

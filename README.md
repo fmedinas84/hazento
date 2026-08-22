@@ -163,3 +163,21 @@ Si no existe una fila en `subscriptions`, el workspace se considera **Free** y n
 Los miembros autenticados solo tienen lectura mediante `is_workspace_member(workspace_id)`. `plan`, `status`, referencias del proveedor y períodos se reservan para procesos server-side que reaccionen a respuestas o webhooks verificados. No se almacenan tarjetas, CVV ni tokens sensibles.
 
 Una evolución posterior podrá agregar `subscription_payments` con `subscription_id`, `provider_payment_id`, monto, moneda, estado y fecha de pago. Estos cobros de Hazento permanecerán separados de `payments` y `payment_allocations`, que representan pagos operativos recibidos por los profesionales.
+
+## Boletas, pagos parciales y ajustes
+
+La migración `003_payment_allocations_and_adjustments.sql` incorpora `documents` para boletas y amplía la tabla existente `payment_allocations`; no crea una segunda tabla de pagos. Una asignación apunta exactamente a una prestación o a una boleta. Así un pago puede distribuirse entre varias boletas, una boleta puede recibir varios pagos y el remanente del pago queda disponible sin inventar movimientos.
+
+El estado tributario (`draft`, `issued`, `voided`) se almacena en `documents`. El estado de cobro se deriva en `document_payment_summaries`:
+
+```text
+pagado    = asignaciones cuyos payments están paid
+ajustado  = descuentos + saldos condonados
+pendiente = total_amount - pagado - ajustado
+```
+
+Los ajustes viven en `document_adjustments` y nunca aumentan ingresos cobrados. Si la boleta está emitida, el trigger conserva `total_amount` y marca la corrección tributaria como `pending`; la interfaz explica que será necesario anular y emitir nuevamente cuando exista integración SII. Para borradores, el total definitivo puede modificarse antes de emitir.
+
+Los triggers bloquean montos negativos, duplicados, cruces de workspace/persona, asignaciones superiores al saldo del pago o de la boleta y reducciones del pago bajo lo ya asignado. `replace_document_payment_allocations(payment_id, jsonb)` reemplaza todas las asignaciones de una edición dentro de una sola transacción. Las tablas nuevas usan el mismo helper RLS `is_workspace_member(workspace_id)`.
+
+Los escenarios mínimos están documentados como prueba transaccional con rollback en `supabase/tests/payment_allocations_and_adjustments.sql`.

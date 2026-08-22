@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { findAccountByEmail } from './accountEmail'
 import { findOrganizationByName } from './organizationName'
 import { useDemoStore } from './store'
+import { documentSummary, paymentAvailable } from './documentPayments'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
 export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value)).toLocaleString('es-CL')}`
@@ -88,6 +89,24 @@ export function useRepositories() {
       records: store.payments,
       allocations: store.paymentAllocations,
       create: store.addPayment,
+      update: store.updatePayment,
+      updateWithDocumentAllocations: store.updatePaymentWithDocumentAllocations,
+      available: (paymentId: number) => {
+        const payment = store.payments.find(item => item.id === paymentId)
+        return payment ? paymentAvailable(payment, store.documentPaymentAllocations) : 0
+      },
+    }
+    const documents = {
+      records: store.documents,
+      allocations: store.documentPaymentAllocations,
+      adjustments: store.documentAdjustments,
+      summary: (documentId: number) => {
+        const document = store.documents.find(item => item.id === documentId)
+        return document ? documentSummary(document, store.payments, store.documentPaymentAllocations, store.documentAdjustments) : undefined
+      },
+      saveAllocation: store.saveDocumentAllocation,
+      deleteAllocation: store.deleteDocumentAllocation,
+      addAdjustment: store.addDocumentAdjustment,
     }
     const services = { records: store.services, create: store.addService, update: store.updateService, toggle: store.toggleService }
 
@@ -101,6 +120,9 @@ export function useRepositories() {
       activities: store.activities,
       payments: store.payments,
       paymentAllocations: store.paymentAllocations,
+      documents: store.documents,
+      documentPaymentAllocations: store.documentPaymentAllocations,
+      documentAdjustments: store.documentAdjustments,
       services: store.services,
       addAccount: store.addAccount,
       addOrganization: store.addOrganization,
@@ -116,6 +138,8 @@ export function useRepositories() {
       addActivity: store.addActivity,
       toggleActivity: store.toggleActivity,
       addPayment: store.addPayment,
+      updatePayment: store.updatePayment,
+      updatePaymentWithDocumentAllocations: store.updatePaymentWithDocumentAllocations,
       addService: store.addService,
       updateService: store.updateService,
       toggleService: store.toggleService,
@@ -128,6 +152,7 @@ export function useRepositories() {
       prestationRepository: prestationsRepository,
       activityRepository: activities,
       paymentRepository: payments,
+      documentRepository: documents,
       serviceRepository: services,
     }
   }, [store])
