@@ -81,3 +81,65 @@ VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
 Nunca usar una `service_role` o secret key en variables `VITE_*`.
+
+## Facturación con Mercado Pago
+
+Hazento ofrece dos planes: **Free ($0 CLP/mes)** y **Plus ($4.990 CLP/mes)**. Plus se implementa como una suscripción recurrente de Mercado Pago, no como pagos únicos repetidos:
+
+```text
+Checkout Bricks (Public Key, navegador)
+→ token de tarjeta de un solo uso
+→ /api/billing/subscription (Access Token, servidor)
+→ POST /preapproval
+→ Mercado Pago programa y ejecuta los cobros mensuales siguientes
+```
+
+El Card Payment Brick se usa únicamente para capturar y tokenizar una tarjeta de crédito. Hazento nunca recibe ni almacena el número completo, vencimiento o CVV. El backend crea un `preapproval` sin plan asociado, porque actualmente existe un único plan pago fijo; allí define `frequency: 1`, `frequency_type: months`, `transaction_amount: 4990` y `currency_id: CLP`. Un `preapproval_plan` podrá incorporarse si más adelante varios planes comparten configuración.
+
+### Endpoints
+
+- `GET /api/billing/config`: entrega al navegador solo la Public Key y el modo configurado.
+- `POST /api/billing/subscription`: crea la autorización recurrente Plus.
+- `GET /api/billing/subscription`: consulta el estado autoritativo en Mercado Pago.
+- `PATCH /api/billing/subscription`: pausa, reactiva o cancela mediante `/preapproval/{id}`.
+- `POST /api/billing/webhook`: valida `x-signature` y confirma el recurso notificado directamente con Mercado Pago.
+
+El frontend conserva únicamente una capacidad firmada y opaca para recuperar la suscripción demo. El Access Token nunca sale de las funciones server-side. La clave de idempotencia se conserva durante el intento para que un doble click, retry o refresh no cree dos solicitudes diferentes. Los webhooks actuales realizan una lectura autoritativa sin efectos secundarios, por lo que su repetición es idempotente.
+
+### Estados
+
+| Mercado Pago | Hazento |
+|---|---|
+| `pending` | `pending` |
+| `authorized` | `active` |
+| `paused` | `paused` |
+| `canceled` | `cancelled` |
+| cuota/pago `recycling` o `rejected` | `payment_failed` |
+
+Mercado Pago genera las cuotas, procesa los cobros y ejecuta sus reintentos. Hazento no usa cron jobs para cobrar. La cancelación envía `status: canceled`, detiene renovaciones futuras y se confirma consultando nuevamente Mercado Pago. Pausa y reactivación usan los estados oficiales `paused` y `authorized`.
+
+### Variables de entorno
+
+Configurar en Vercel y, para pruebas locales con `vercel dev`, en `.env.local`:
+
+```text
+MERCADOPAGO_PUBLIC_KEY=
+MERCADOPAGO_ACCESS_TOKEN=
+MERCADOPAGO_WEBHOOK_SECRET=
+BILLING_CAPABILITY_SECRET=
+APP_BASE_URL=
+```
+
+La Public Key y el Access Token deben provenir de la misma aplicación y del mismo entorno. En desarrollo se esperan credenciales `TEST-`. Nunca usar variables `VITE_*` para el Access Token, el secreto del webhook o la capacidad.
+
+### Configuración manual en Mercado Pago Developers
+
+1. Crear o seleccionar la aplicación de Hazento y copiar sus credenciales de prueba.
+2. Registrar `https://TU_DOMINIO/api/billing/webhook` como URL HTTPS de Webhooks.
+3. Activar `subscription_preapproval`, `subscription_authorized_payment` y `payments`.
+4. Copiar la clave secreta de firma a `MERCADOPAGO_WEBHOOK_SECRET`.
+5. Probar con usuario y tarjetas de prueba antes de cargar credenciales de producción.
+
+### Limitación temporal por falta de Auth
+
+Esta integración puede probarse de punta a punta en modo test, pero aún no concede beneficios Plus de producción. Sin Supabase Auth no existe una identidad server-side durable que vincule de forma inequívoca la suscripción con un workspace. La futura integración deberá persistir `workspace_id`, `preapproval_id`, estado, fechas y eventos procesados en PostgreSQL, protegidos por RLS, y reemplazar la capacidad demo por autorización autenticada. Hasta entonces Mercado Pago es la fuente autoritativa y no se confía en `localStorage` para otorgar acceso Plus.
