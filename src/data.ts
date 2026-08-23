@@ -182,6 +182,73 @@ export type PaymentData = {
   status: string
   allocations: string
   createdAt?: string
+  voidedAt?: string
+  voidedBy?: string
+  voidReason?: string
+}
+
+export type DocumentData = {
+  id: number
+  workspaceId: number
+  accountId: number
+  number?: string
+  taxStatus: 'Borrador' | 'Emitida' | 'Anulada'
+  totalAmount: number
+  date: string
+}
+
+export type DocumentPaymentAllocationData = {
+  id: number
+  paymentId: number
+  documentId: number
+  amount: number
+}
+
+export type DocumentAdjustmentData = {
+  id: number
+  documentId: number
+  amount: number
+  type: 'Descuento' | 'Saldo condonado'
+  reason: string
+  date: string
+  recordedBy: string
+  taxCorrectionStatus: 'No requerida' | 'Pendiente' | 'Resuelta'
+}
+
+export type PaymentRequestStatus = 'Pendiente' | 'Pagada' | 'Cerrada con saldo trasladado' | 'Cerrada con diferencia condonada' | 'Cancelada'
+
+export type PaymentRequestData = {
+  id: number
+  workspaceId: number
+  accountId: number
+  parentRequestId?: number
+  originPrestationId?: number
+  originEngagementId?: number
+  originOpportunityId?: number
+  status: PaymentRequestStatus
+  amount: number
+  dueDate?: string
+  note?: string
+  waivedAmount: number
+  waiverReason?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type PaymentRequestItemData = {
+  id: number
+  paymentRequestId: number
+  prestationId?: number
+  engagementId?: number
+  description: string
+  amount: number
+}
+
+export type PaymentRequestAllocationData = {
+  id: number
+  paymentId: number
+  paymentRequestId: number
+  amount: number
 }
 
 export const accounts: AccountData[] = [
@@ -267,6 +334,36 @@ export const paymentAllocations = [
   { id: 4, paymentId: 4, prestationId: 11, amount: 45000 },
   { id: 5, paymentId: 5, prestationId: 12, amount: 35000 },
   { id: 6, paymentId: 5, prestationId: 1, amount: 17500 },
+]
+
+export const documents: DocumentData[] = [
+  { id: 1, workspaceId: 1, accountId: 2, number: 'B-101', taxStatus: 'Emitida', totalAmount: 30000, date: '14 Ago' },
+  { id: 2, workspaceId: 1, accountId: 1, number: 'B-102', taxStatus: 'Emitida', totalAmount: 35000, date: '17 Ago' },
+  { id: 3, workspaceId: 1, accountId: 3, taxStatus: 'Borrador', totalAmount: 45000, date: '18 Ago' },
+]
+
+export const documentPaymentAllocations: DocumentPaymentAllocationData[] = [
+  { id: 1, paymentId: 2, documentId: 1, amount: 15000 },
+  { id: 2, paymentId: 3, documentId: 2, amount: 35000 },
+]
+
+export const documentAdjustments: DocumentAdjustmentData[] = []
+
+// Requests are created only by an explicit user action. These examples make the
+// distinction visible without deriving receivables automatically from work.
+export const paymentRequests: PaymentRequestData[] = [
+  { id: 1, workspaceId: 1, accountId: 2, originPrestationId: 4, status: 'Pendiente', amount: 30000, dueDate: '2026-08-28', note: 'Control de agosto', waivedAmount: 0, createdAt: '2026-08-14T11:00:00-04:00', updatedAt: '2026-08-14T11:00:00-04:00' },
+  { id: 2, workspaceId: 1, accountId: 1, originEngagementId: 1, status: 'Pagada', amount: 35000, waivedAmount: 0, createdAt: '2026-08-10T09:30:00-04:00', updatedAt: '2026-08-10T10:30:00-04:00' },
+]
+
+export const paymentRequestItems: PaymentRequestItemData[] = [
+  { id: 1, paymentRequestId: 1, prestationId: 4, description: 'Control', amount: 30000 },
+  { id: 2, paymentRequestId: 2, prestationId: 6, description: 'Sesión individual', amount: 35000 },
+]
+
+export const paymentRequestAllocations: PaymentRequestAllocationData[] = [
+  { id: 1, paymentId: 2, paymentRequestId: 1, amount: 15000 },
+  { id: 2, paymentId: 3, paymentRequestId: 2, amount: 35000 },
 ]
 
 export const services = [

@@ -3,24 +3,37 @@ import {
   type AccountData,
   type ActivityData,
   type ContactData,
+  type DocumentAdjustmentData,
+  type DocumentData,
+  type DocumentPaymentAllocationData,
   type EngagementData,
   type OpportunityData,
   type OrganizationData,
   type PaymentData,
+  type PaymentRequestAllocationData,
+  type PaymentRequestData,
+  type PaymentRequestItemData,
   type PrestationData,
   accounts as seedAccounts,
   activities as seedActivities,
   contacts as seedContacts,
+  documentAdjustments as seedDocumentAdjustments,
+  documentPaymentAllocations as seedDocumentPaymentAllocations,
+  documents as seedDocuments,
   engagements as seedEngagements,
   opportunities as seedOpportunities,
   organizations as seedOrganizations,
   paymentAllocations as seedPaymentAllocations,
+  paymentRequestAllocations as seedPaymentRequestAllocations,
+  paymentRequestItems as seedPaymentRequestItems,
+  paymentRequests as seedPaymentRequests,
   payments as seedPayments,
   prestations as seedPrestations,
   services as seedServices,
 } from './data'
 import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
 import { findOrganizationByName, type NewOrganizationRecord } from './organizationName'
+import { validateAdjustment, validateAllocation } from './documentPayments'
 
 export type Account = AccountData
 export type Contact = ContactData
@@ -31,6 +44,12 @@ export type Prestation = PrestationData
 export type ActivityRecord = ActivityData
 export type Payment = PaymentData
 export type PaymentAllocation = (typeof seedPaymentAllocations)[number]
+export type PaymentRequest = PaymentRequestData
+export type PaymentRequestItem = PaymentRequestItemData
+export type PaymentRequestAllocation = PaymentRequestAllocationData
+export type Document = DocumentData
+export type DocumentPaymentAllocation = DocumentPaymentAllocationData
+export type DocumentAdjustment = DocumentAdjustmentData
 export type Service = (typeof seedServices)[number]
 
 type DemoState = {
@@ -43,6 +62,12 @@ type DemoState = {
   activities: ActivityRecord[]
   payments: Payment[]
   paymentAllocations: PaymentAllocation[]
+  paymentRequests: PaymentRequest[]
+  paymentRequestItems: PaymentRequestItem[]
+  paymentRequestAllocations: PaymentRequestAllocation[]
+  documents: Document[]
+  documentPaymentAllocations: DocumentPaymentAllocation[]
+  documentAdjustments: DocumentAdjustment[]
   services: Service[]
 }
 
@@ -61,8 +86,16 @@ type DemoStore = DemoState & {
   updatePrestation: (id: number, changes: Partial<Prestation>) => void
   addActivity: (record: Omit<ActivityRecord, 'id'>) => ActivityRecord
   toggleActivity: (id: number) => void
-  addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>) => Payment
-  updatePayment: (id: number, changes: Partial<Payment>, allocations: Array<{ prestationId: number; amount: number }>) => void
+  addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>, documentAllocations?: Array<{ documentId: number; amount: number }>) => Payment
+  addPaymentRequest: (record: Omit<PaymentRequest, 'id' | 'createdAt' | 'updatedAt' | 'waivedAmount' | 'status'>, items: Array<Omit<PaymentRequestItem, 'id' | 'paymentRequestId'>>) => PaymentRequest
+  settlePaymentRequest: (id: number, receivedAmount: number, method: string, differenceAction?: 'transfer' | 'waive', waiverReason?: string) => void
+  cancelPaymentRequest: (id: number) => void
+  voidPayment: (id: number, reason: string) => void
+  updatePayment: (id: number, changes: Partial<Payment>) => void
+  updatePaymentWithDocumentAllocations: (id: number, changes: Partial<Payment>, allocations: Array<{ documentId: number; amount: number }>) => void
+  saveDocumentAllocation: (record: Omit<DocumentPaymentAllocation, 'id'>, allocationId?: number) => void
+  deleteDocumentAllocation: (id: number) => void
+  addDocumentAdjustment: (record: Omit<DocumentAdjustment, 'id' | 'taxCorrectionStatus'>) => void
   addService: (record: Omit<Service, 'id'>) => Service
   updateService: (id: number, changes: Partial<Service>) => void
   toggleService: (id: number) => void
@@ -81,6 +114,12 @@ const seedState: DemoState = {
   activities: seedActivities,
   payments: seedPayments,
   paymentAllocations: seedPaymentAllocations,
+  paymentRequests: seedPaymentRequests,
+  paymentRequestItems: seedPaymentRequestItems,
+  paymentRequestAllocations: seedPaymentRequestAllocations,
+  documents: seedDocuments,
+  documentPaymentAllocations: seedDocumentPaymentAllocations,
+  documentAdjustments: seedDocumentAdjustments,
   services: seedServices,
 }
 
@@ -104,6 +143,12 @@ function migrateDemoState(saved: DemoState): DemoState {
     })),
     activities: saved.activities.map(activity => ({ ...activity, accountId: activity.accountId ?? accountIdFor(activity.relation.split(' · ')[0]) })),
     payments: saved.payments.map(payment => ({ ...payment, accountId: payment.accountId ?? accountIdFor(payment.account) })),
+    paymentRequests: saved.paymentRequests ?? seedPaymentRequests,
+    paymentRequestItems: saved.paymentRequestItems ?? seedPaymentRequestItems,
+    paymentRequestAllocations: saved.paymentRequestAllocations ?? seedPaymentRequestAllocations,
+    documents: saved.documents ?? seedDocuments,
+    documentPaymentAllocations: saved.documentPaymentAllocations ?? seedDocumentPaymentAllocations,
+    documentAdjustments: saved.documentAdjustments ?? seedDocumentAdjustments,
   }
 }
 
@@ -256,7 +301,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     toggleActivity(id) {
       setState(current => ({ ...current, activities: current.activities.map(record => record.id === id ? { ...record, status: record.status === 'Completada' ? 'Pendiente' : 'Completada' } : record) }))
     },
-    addPayment(record, allocations) {
+    addPayment(record, allocations, documentAllocations = []) {
       const created: Payment = { ...record, id: nextId(state.payments), createdAt: record.createdAt ?? new Date().toISOString() }
       const firstAllocationId = nextId(state.paymentAllocations)
       const createdAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
@@ -265,27 +310,122 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         prestationId: allocation.prestationId,
         amount: allocation.amount,
       }))
-      setState(current => ({
-        ...current,
-        payments: [created, ...current.payments],
-        paymentAllocations: [...current.paymentAllocations, ...createdAllocations],
-      }))
+      setState(current => {
+        const payments = [created, ...current.payments]
+        let nextDocumentAllocations = current.documentPaymentAllocations
+        documentAllocations.forEach(record => {
+          const document = current.documents.find(item => item.id === record.documentId)
+          if (!document) throw new Error('No encontramos la boleta.')
+          validateAllocation({ payment: created, document, amount: record.amount, payments, allocations: nextDocumentAllocations, adjustments: current.documentAdjustments })
+          nextDocumentAllocations = [...nextDocumentAllocations, { ...record, paymentId: created.id, id: nextId(nextDocumentAllocations) }]
+        })
+        return { ...current, payments, paymentAllocations: [...current.paymentAllocations, ...createdAllocations], documentPaymentAllocations: nextDocumentAllocations }
+      })
       return created
     },
-    updatePayment(id, changes, allocations) {
+    addPaymentRequest(record, items) {
+      const savedAt = new Date().toISOString()
+      const created: PaymentRequest = { ...record, id: nextId(state.paymentRequests), status: 'Pendiente', waivedAmount: 0, createdAt: savedAt, updatedAt: savedAt }
+      const firstItemId = nextId(state.paymentRequestItems)
+      const createdItems = items.map((item, index) => ({ ...item, id: firstItemId + index, paymentRequestId: created.id }))
+      if (!created.amount || created.amount <= 0) throw new Error('El monto solicitado debe ser mayor que cero.')
+      if (!createdItems.length) throw new Error('Agrega al menos un concepto.')
+      setState(current => ({ ...current, paymentRequests: [created, ...current.paymentRequests], paymentRequestItems: [...current.paymentRequestItems, ...createdItems] }))
+      return created
+    },
+    settlePaymentRequest(id, receivedAmount, method, differenceAction, waiverReason) {
       setState(current => {
-        const firstAllocationId = nextId(current.paymentAllocations.filter(allocation => allocation.paymentId !== id))
-        const replacementAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
-          id: firstAllocationId + index,
-          paymentId: id,
-          prestationId: allocation.prestationId,
-          amount: allocation.amount,
-        }))
-        return {
-          ...current,
-          payments: current.payments.map(payment => payment.id === id ? { ...payment, ...changes } : payment),
-          paymentAllocations: [...current.paymentAllocations.filter(allocation => allocation.paymentId !== id), ...replacementAllocations],
+        const request = current.paymentRequests.find(item => item.id === id)
+        if (!request || request.status !== 'Pendiente') throw new Error('La solicitud ya no está pendiente.')
+        const paid = current.paymentRequestAllocations.filter(item => item.paymentRequestId === id).reduce((sum, item) => sum + item.amount, 0)
+        const outstanding = Math.max(0, request.amount - paid - request.waivedAmount)
+        if (receivedAmount <= 0 || receivedAmount > outstanding) throw new Error('El monto recibido no es válido.')
+        if (receivedAmount < outstanding && !differenceAction) throw new Error('Indica qué hacer con la diferencia.')
+        if (differenceAction === 'waive' && !waiverReason?.trim()) throw new Error('Indica el motivo de la condonación.')
+        const account = current.accounts.find(item => item.id === request.accountId)
+        const now = new Date().toISOString()
+        const payment: Payment = { id: nextId(current.payments), accountId: request.accountId, account: account?.name || 'Persona', amount: `$${receivedAmount.toLocaleString('es-CL')}`, date: new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' }).format(new Date()), method, status: 'Pagado', allocations: 'Solicitud de pago', createdAt: now }
+        const allocation: PaymentRequestAllocation = { id: nextId(current.paymentRequestAllocations), paymentId: payment.id, paymentRequestId: id, amount: receivedAmount }
+        let requests = current.paymentRequests.map(item => item.id === id ? { ...item, status: (receivedAmount === outstanding ? 'Pagada' : differenceAction === 'transfer' ? 'Cerrada con saldo trasladado' : 'Cerrada con diferencia condonada') as PaymentRequest['status'], waivedAmount: differenceAction === 'waive' ? outstanding - receivedAmount : item.waivedAmount, waiverReason: differenceAction === 'waive' ? waiverReason!.trim() : item.waiverReason, updatedAt: now } : item)
+        let items = current.paymentRequestItems
+        if (differenceAction === 'transfer') {
+          const successor: PaymentRequest = { ...request, id: nextId(requests), parentRequestId: request.id, status: 'Pendiente', amount: outstanding - receivedAmount, waivedAmount: 0, waiverReason: undefined, note: `Saldo trasladado desde solicitud #${request.id}`, createdAt: now, updatedAt: now }
+          const sourceItems = current.paymentRequestItems.filter(item => item.paymentRequestId === id)
+          const firstItemId = nextId(items)
+          items = [...items, ...sourceItems.map((item, index) => ({ ...item, id: firstItemId + index, paymentRequestId: successor.id, amount: index === 0 ? successor.amount : 0 }))]
+          requests = [successor, ...requests]
         }
+        return { ...current, payments: [payment, ...current.payments], paymentRequests: requests, paymentRequestItems: items, paymentRequestAllocations: [...current.paymentRequestAllocations, allocation] }
+      })
+    },
+    cancelPaymentRequest(id) {
+      setState(current => ({ ...current, paymentRequests: current.paymentRequests.map(item => item.id === id && item.status === 'Pendiente' ? { ...item, status: 'Cancelada', updatedAt: new Date().toISOString() } : item) }))
+    },
+    voidPayment(id, reason) {
+      const cleanReason = reason.trim()
+      if (!cleanReason) throw new Error('Indica el motivo de la anulación.')
+      setState(current => {
+        const payment = current.payments.find(item => item.id === id)
+        if (!payment || payment.status !== 'Pagado') throw new Error('Solo puedes anular un pago recibido vigente.')
+        const now = new Date().toISOString()
+        const requestIds = new Set(current.paymentRequestAllocations.filter(item => item.paymentId === id).map(item => item.paymentRequestId))
+        const transferredRequestIds = new Set(current.paymentRequests.filter(item => requestIds.has(item.id) && item.status === 'Cerrada con saldo trasladado').map(item => item.id))
+        const payments = current.payments.map(item => item.id === id ? { ...item, status: 'Anulado', voidedAt: now, voidedBy: 'Usuario demo', voidReason: cleanReason } : item)
+        const paymentRequests = current.paymentRequests.map(request => {
+          if (request.parentRequestId && transferredRequestIds.has(request.parentRequestId) && request.status === 'Pendiente') return { ...request, status: 'Cancelada' as const, note: `${request.note || ''}${request.note ? ' · ' : ''}Cancelada al anular el pago de origen.`, updatedAt: now }
+          if (!requestIds.has(request.id)) return request
+          return { ...request, status: 'Pendiente' as const, updatedAt: now }
+        })
+        return { ...current, payments, paymentRequests }
+      })
+    },
+    updatePayment(id, changes) {
+      setState(current => {
+        const payment = current.payments.find(record => record.id === id)
+        if (!payment) return current
+        const updated = { ...payment, ...changes }
+        const related = current.documentPaymentAllocations.filter(allocation => allocation.paymentId === id)
+        const allocated = related.reduce((sum, allocation) => sum + allocation.amount, 0)
+        if (allocated > Number(updated.amount.replace(/[^0-9-]/g, ''))) throw new Error('El monto del pago no puede ser menor que sus asignaciones.')
+        return { ...current, payments: current.payments.map(record => record.id === id ? updated : record) }
+      })
+    },
+    updatePaymentWithDocumentAllocations(id, changes, allocations) {
+      setState(current => {
+        const payment = current.payments.find(record => record.id === id)
+        if (!payment) throw new Error('No encontramos el pago.')
+        const updated = { ...payment, ...changes }
+        const payments = current.payments.map(record => record.id === id ? updated : record)
+        let nextAllocations = current.documentPaymentAllocations.filter(allocation => allocation.paymentId !== id)
+        allocations.forEach(record => {
+          const document = current.documents.find(item => item.id === record.documentId)
+          if (!document) throw new Error('No encontramos la boleta.')
+          validateAllocation({ payment: updated, document, amount: record.amount, payments, allocations: nextAllocations, adjustments: current.documentAdjustments })
+          nextAllocations = [...nextAllocations, { ...record, paymentId: id, id: nextId(nextAllocations) }]
+        })
+        return { ...current, payments, documentPaymentAllocations: nextAllocations }
+      })
+    },
+    saveDocumentAllocation(record, allocationId) {
+      setState(current => {
+        const payment = current.payments.find(item => item.id === record.paymentId)
+        const document = current.documents.find(item => item.id === record.documentId)
+        if (!payment || !document) throw new Error('No encontramos el pago o la boleta.')
+        validateAllocation({ payment, document, amount: record.amount, payments: current.payments, allocations: current.documentPaymentAllocations, adjustments: current.documentAdjustments, exceptAllocationId: allocationId })
+        const allocation = { ...record, id: allocationId ?? nextId(current.documentPaymentAllocations) }
+        return { ...current, documentPaymentAllocations: allocationId ? current.documentPaymentAllocations.map(item => item.id === allocationId ? allocation : item) : [...current.documentPaymentAllocations, allocation] }
+      })
+    },
+    deleteDocumentAllocation(id) {
+      setState(current => ({ ...current, documentPaymentAllocations: current.documentPaymentAllocations.filter(item => item.id !== id) }))
+    },
+    addDocumentAdjustment(record) {
+      setState(current => {
+        const document = current.documents.find(item => item.id === record.documentId)
+        if (!document) throw new Error('No encontramos la boleta.')
+        validateAdjustment(document, record.amount, current.payments, current.documentPaymentAllocations, current.documentAdjustments)
+        const adjustment: DocumentAdjustment = { ...record, id: nextId(current.documentAdjustments), taxCorrectionStatus: document.taxStatus === 'Emitida' ? 'Pendiente' : 'No requerida' }
+        return { ...current, documentAdjustments: [...current.documentAdjustments, adjustment] }
       })
     },
     addService(record) {

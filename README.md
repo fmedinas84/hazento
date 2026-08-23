@@ -163,3 +163,41 @@ Si no existe una fila en `subscriptions`, el workspace se considera **Free** y n
 Los miembros autenticados solo tienen lectura mediante `is_workspace_member(workspace_id)`. `plan`, `status`, referencias del proveedor y períodos se reservan para procesos server-side que reaccionen a respuestas o webhooks verificados. No se almacenan tarjetas, CVV ni tokens sensibles.
 
 Una evolución posterior podrá agregar `subscription_payments` con `subscription_id`, `provider_payment_id`, monto, moneda, estado y fecha de pago. Estos cobros de Hazento permanecerán separados de `payments` y `payment_allocations`, que representan pagos operativos recibidos por los profesionales.
+
+## Boletas, pagos parciales y ajustes
+
+La migración `003_payment_allocations_and_adjustments.sql` incorpora `documents` para boletas y amplía la tabla existente `payment_allocations`; no crea una segunda tabla de pagos. Una asignación apunta exactamente a una prestación o a una boleta. Así un pago puede distribuirse entre varias boletas, una boleta puede recibir varios pagos y el remanente del pago queda disponible sin inventar movimientos.
+
+El estado tributario (`draft`, `issued`, `voided`) se almacena en `documents`. El estado de cobro se deriva en `document_payment_summaries`:
+
+```text
+pagado    = asignaciones cuyos payments están paid
+ajustado  = descuentos + saldos condonados
+pendiente = total_amount - pagado - ajustado
+```
+
+Los ajustes viven en `document_adjustments` y nunca aumentan ingresos cobrados. Si la boleta está emitida, el trigger conserva `total_amount` y marca la corrección tributaria como `pending`; la interfaz explica que será necesario anular y emitir nuevamente cuando exista integración SII. Para borradores, el total definitivo puede modificarse antes de emitir.
+
+Los triggers bloquean montos negativos, duplicados, cruces de workspace/persona, asignaciones superiores al saldo del pago o de la boleta y reducciones del pago bajo lo ya asignado. `replace_document_payment_allocations(payment_id, jsonb)` reemplaza todas las asignaciones de una edición dentro de una sola transacción. Las tablas nuevas usan el mismo helper RLS `is_workspace_member(workspace_id)`.
+
+Los escenarios mínimos están documentados como prueba transaccional con rollback en `supabase/tests/payment_allocations_and_adjustments.sql`.
+
+## Solicitudes de pago, pagos y boletas
+
+Hazento mantiene tres conceptos independientes:
+
+```text
+Solicitud de pago = monto que se espera cobrar
+Pago              = dinero efectivamente recibido
+Boleta            = documento tributario futuro
+```
+
+Las solicitudes nunca se crean al registrar una atención, entregable, contenido, clase o engagement. Se generan mediante una acción explícita desde su ficha y pueden agrupar varios conceptos en `payment_request_items`. `payment_allocations` se reutiliza para asociar pagos reales a prestaciones, solicitudes o documentos, con una sola clase de destino por fila.
+
+`settle_payment_request` ejecuta en una única transacción el pago total o parcial. Ante un pago parcial, la solicitud original se cierra y el saldo se traslada a una nueva solicitud enlazada mediante `parent_request_id`, o se registra como diferencia condonada con monto, motivo, fecha y usuario. Una condonación reduce el saldo, pero nunca aumenta ingresos: los indicadores suman exclusivamente filas reales de `payments` con estado pagado.
+
+Las tablas `payment_requests` y `payment_request_items` usan claves foráneas compuestas para mantener `workspace_id` y persona consistentes con prestaciones, engagements y oportunidades. Ambas tienen RLS por membresía del workspace; la vista derivada `payment_request_summaries` usa `security_invoker`. Las pruebas con rollback están en `supabase/tests/payment_requests.sql`.
+
+Las boletas permanecen preparadas en `documents`, pero no forman parte de la navegación principal. En la solicitud se reservan las acciones inactivas “Generar link de pago” y “Generar boleta” para iteraciones futuras.
+
+Los pagos recibidos se originan exclusivamente desde una solicitud. Una vez registrados son inmutables: cualquier corrección se realiza mediante una anulación auditada (`voided_at`, `voided_by`, `void_reason`). El pago y sus asignaciones permanecen visibles, pero dejan de contar como ingreso y el saldo de la solicitud se recalcula. Las asignaciones entre pagos y boletas quedan fuera de la interfaz hasta definir el flujo tributario definitivo.
