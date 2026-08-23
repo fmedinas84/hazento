@@ -113,6 +113,17 @@ export function useRepositories() {
       },
       forPrestation: (prestationId: number) => store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId)),
       forEngagement: (engagementId: number) => store.paymentRequests.filter(request => request.originEngagementId === engagementId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.engagementId === engagementId)),
+      collectionStatusForPrestation: (prestationId: number) => {
+        const related = store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId))
+        const relevant = related.filter(request => request.status !== 'Cancelada')
+        const paid = related.reduce((sum, request) => sum + store.paymentRequestAllocations
+          .filter(allocation => allocation.paymentRequestId === request.id && store.payments.some(payment => payment.id === allocation.paymentId && payment.status === 'Pagado'))
+          .reduce((subtotal, allocation) => subtotal + allocation.amount, 0), 0)
+        const requested = related.filter(request => !request.parentRequestId).reduce((sum, request) => sum + request.amount, 0)
+        if (!relevant.length && paid === 0) return 'Pago no solicitado'
+        if (paid === 0) return 'Solicitado'
+        return paid >= requested ? 'Pagado' : 'Pagado parcial'
+      },
     }
     const voidPayment = store.voidPayment
     const documents = {
