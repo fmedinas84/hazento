@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { findAccountByEmail } from './accountEmail'
 import { findOrganizationByName } from './organizationName'
 import { useDemoStore } from './store'
+import { documentSummary, paymentAvailable } from './documentPayments'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
 export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value)).toLocaleString('es-CL')}`
@@ -88,6 +89,54 @@ export function useRepositories() {
       records: store.payments,
       allocations: store.paymentAllocations,
       create: store.addPayment,
+      update: store.updatePayment,
+      updateWithDocumentAllocations: store.updatePaymentWithDocumentAllocations,
+      available: (paymentId: number) => {
+        const payment = store.payments.find(item => item.id === paymentId)
+        return payment ? paymentAvailable(payment, store.documentPaymentAllocations) : 0
+      },
+    }
+    const paymentRequests = {
+      records: store.paymentRequests,
+      items: store.paymentRequestItems,
+      allocations: store.paymentRequestAllocations,
+      create: store.addPaymentRequest,
+      settle: store.settlePaymentRequest,
+      cancel: store.cancelPaymentRequest,
+      summary: (requestId: number) => {
+        const request = store.paymentRequests.find(item => item.id === requestId)
+        if (!request) return undefined
+        const paid = store.paymentRequestAllocations.filter(item => item.paymentRequestId === requestId)
+          .filter(item => store.payments.some(payment => payment.id === item.paymentId && payment.status === 'Pagado'))
+          .reduce((sum, item) => sum + item.amount, 0)
+        return { requested: request.amount, paid, waived: request.waivedAmount, outstanding: Math.max(0, request.amount - paid - request.waivedAmount) }
+      },
+      forPrestation: (prestationId: number) => store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId)),
+      forEngagement: (engagementId: number) => store.paymentRequests.filter(request => request.originEngagementId === engagementId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.engagementId === engagementId)),
+      collectionStatusForPrestation: (prestationId: number) => {
+        const related = store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId))
+        const relevant = related.filter(request => request.status !== 'Cancelada')
+        const paid = related.reduce((sum, request) => sum + store.paymentRequestAllocations
+          .filter(allocation => allocation.paymentRequestId === request.id && store.payments.some(payment => payment.id === allocation.paymentId && payment.status === 'Pagado'))
+          .reduce((subtotal, allocation) => subtotal + allocation.amount, 0), 0)
+        const requested = related.filter(request => !request.parentRequestId).reduce((sum, request) => sum + request.amount, 0)
+        if (!relevant.length && paid === 0) return 'Pago no solicitado'
+        if (paid === 0) return 'Solicitado'
+        return paid >= requested ? 'Pagado' : 'Pagado parcial'
+      },
+    }
+    const voidPayment = store.voidPayment
+    const documents = {
+      records: store.documents,
+      allocations: store.documentPaymentAllocations,
+      adjustments: store.documentAdjustments,
+      summary: (documentId: number) => {
+        const document = store.documents.find(item => item.id === documentId)
+        return document ? documentSummary(document, store.payments, store.documentPaymentAllocations, store.documentAdjustments) : undefined
+      },
+      saveAllocation: store.saveDocumentAllocation,
+      deleteAllocation: store.deleteDocumentAllocation,
+      addAdjustment: store.addDocumentAdjustment,
     }
     const services = { records: store.services, create: store.addService, update: store.updateService, toggle: store.toggleService }
 
@@ -101,6 +150,12 @@ export function useRepositories() {
       activities: store.activities,
       payments: store.payments,
       paymentAllocations: store.paymentAllocations,
+      paymentRequests: store.paymentRequests,
+      paymentRequestItems: store.paymentRequestItems,
+      paymentRequestAllocations: store.paymentRequestAllocations,
+      documents: store.documents,
+      documentPaymentAllocations: store.documentPaymentAllocations,
+      documentAdjustments: store.documentAdjustments,
       services: store.services,
       addAccount: store.addAccount,
       addOrganization: store.addOrganization,
@@ -116,6 +171,8 @@ export function useRepositories() {
       addActivity: store.addActivity,
       toggleActivity: store.toggleActivity,
       addPayment: store.addPayment,
+      updatePayment: store.updatePayment,
+      updatePaymentWithDocumentAllocations: store.updatePaymentWithDocumentAllocations,
       addService: store.addService,
       updateService: store.updateService,
       toggleService: store.toggleService,
@@ -128,6 +185,9 @@ export function useRepositories() {
       prestationRepository: prestationsRepository,
       activityRepository: activities,
       paymentRepository: payments,
+      paymentRequestRepository: paymentRequests,
+      voidPayment,
+      documentRepository: documents,
       serviceRepository: services,
     }
   }, [store])
