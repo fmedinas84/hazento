@@ -90,6 +90,7 @@ type DemoStore = DemoState & {
   addPaymentRequest: (record: Omit<PaymentRequest, 'id' | 'createdAt' | 'updatedAt' | 'waivedAmount' | 'status'>, items: Array<Omit<PaymentRequestItem, 'id' | 'paymentRequestId'>>) => PaymentRequest
   settlePaymentRequest: (id: number, receivedAmount: number, method: string, differenceAction?: 'transfer' | 'waive', waiverReason?: string) => void
   cancelPaymentRequest: (id: number) => void
+  voidPayment: (id: number, reason: string) => void
   updatePayment: (id: number, changes: Partial<Payment>) => void
   updatePaymentWithDocumentAllocations: (id: number, changes: Partial<Payment>, allocations: Array<{ documentId: number; amount: number }>) => void
   saveDocumentAllocation: (record: Omit<DocumentPaymentAllocation, 'id'>, allocationId?: number) => void
@@ -359,6 +360,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     },
     cancelPaymentRequest(id) {
       setState(current => ({ ...current, paymentRequests: current.paymentRequests.map(item => item.id === id && item.status === 'Pendiente' ? { ...item, status: 'Cancelada', updatedAt: new Date().toISOString() } : item) }))
+    },
+    voidPayment(id, reason) {
+      const cleanReason = reason.trim()
+      if (!cleanReason) throw new Error('Indica el motivo de la anulación.')
+      setState(current => {
+        const payment = current.payments.find(item => item.id === id)
+        if (!payment || payment.status !== 'Pagado') throw new Error('Solo puedes anular un pago recibido vigente.')
+        const now = new Date().toISOString()
+        const requestIds = new Set(current.paymentRequestAllocations.filter(item => item.paymentId === id).map(item => item.paymentRequestId))
+        const transferredRequestIds = new Set(current.paymentRequests.filter(item => requestIds.has(item.id) && item.status === 'Cerrada con saldo trasladado').map(item => item.id))
+        const payments = current.payments.map(item => item.id === id ? { ...item, status: 'Anulado', voidedAt: now, voidedBy: 'Usuario demo', voidReason: cleanReason } : item)
+        const paymentRequests = current.paymentRequests.map(request => {
+          if (request.parentRequestId && transferredRequestIds.has(request.parentRequestId) && request.status === 'Pendiente') return { ...request, status: 'Cancelada' as const, note: `${request.note || ''}${request.note ? ' · ' : ''}Cancelada al anular el pago de origen.`, updatedAt: now }
+          if (!requestIds.has(request.id)) return request
+          return { ...request, status: 'Pendiente' as const, updatedAt: now }
+        })
+        return { ...current, payments, paymentRequests }
+      })
     },
     updatePayment(id, changes) {
       setState(current => {

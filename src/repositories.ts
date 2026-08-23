@@ -114,6 +114,7 @@ export function useRepositories() {
       forPrestation: (prestationId: number) => store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId)),
       forEngagement: (engagementId: number) => store.paymentRequests.filter(request => request.originEngagementId === engagementId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.engagementId === engagementId)),
     }
+    const voidPayment = store.voidPayment
     const documents = {
       records: store.documents,
       allocations: store.documentPaymentAllocations,
@@ -174,6 +175,7 @@ export function useRepositories() {
       activityRepository: activities,
       paymentRepository: payments,
       paymentRequestRepository: paymentRequests,
+      voidPayment,
       documentRepository: documents,
       serviceRepository: services,
     }

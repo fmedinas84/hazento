@@ -37,6 +37,19 @@ begin
   select * into summary from public.payment_request_summaries where id = request_total;
   assert summary.status = 'paid' and summary.paid_amount = 30000 and summary.outstanding_amount = 0;
 
+  -- A received payment remains traceable after voiding and restores the request.
+  perform public.void_received_payment(result.payment_id, 'Pago duplicado en prueba');
+  select * into summary from public.payment_request_summaries where id = request_total;
+  assert (select status from public.payments where id = result.payment_id) = 'voided';
+  assert (select void_reason from public.payments where id = result.payment_id) = 'Pago duplicado en prueba';
+  assert summary.status = 'pending' and summary.paid_amount = 0 and summary.outstanding_amount = 30000;
+  begin
+    update public.payments set amount = 1 where id = result.payment_id;
+    raise exception 'Expected immutable voided payment update to fail';
+  exception when others then
+    assert sqlerrm like '%inmutables%';
+  end;
+
   -- 4. Partial payment transfers only the remaining 10,000.
   insert into public.payment_requests(id, workspace_id, account_id, amount) values (request_transfer, workspace_a, account_a, 30000);
   select * into result from public.settle_payment_request(request_transfer, 20000, 'efectivo', 'transfer');

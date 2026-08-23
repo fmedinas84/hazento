@@ -199,3 +199,5 @@ Las solicitudes nunca se crean al registrar una atención, entregable, contenido
 Las tablas `payment_requests` y `payment_request_items` usan claves foráneas compuestas para mantener `workspace_id` y persona consistentes con prestaciones, engagements y oportunidades. Ambas tienen RLS por membresía del workspace; la vista derivada `payment_request_summaries` usa `security_invoker`. Las pruebas con rollback están en `supabase/tests/payment_requests.sql`.
 
 Las boletas permanecen preparadas en `documents`, pero no forman parte de la navegación principal. En la solicitud se reservan las acciones inactivas “Generar link de pago” y “Generar boleta” para iteraciones futuras.
+
+Los pagos recibidos se originan exclusivamente desde una solicitud. Una vez registrados son inmutables: cualquier corrección se realiza mediante una anulación auditada (`voided_at`, `voided_by`, `void_reason`). El pago y sus asignaciones permanecen visibles, pero dejan de contar como ingreso y el saldo de la solicitud se recalcula. Las asignaciones entre pagos y boletas quedan fuera de la interfaz hasta definir el flujo tributario definitivo.

@@ -181,6 +181,9 @@ export type PaymentData = {
   status: string
   allocations: string
   createdAt?: string
+  voidedAt?: string
+  voidedBy?: string
+  voidReason?: string
 }
 
 export type DocumentData = {
