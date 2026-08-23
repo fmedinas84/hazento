@@ -96,6 +96,24 @@ export function useRepositories() {
         return payment ? paymentAvailable(payment, store.documentPaymentAllocations) : 0
       },
     }
+    const paymentRequests = {
+      records: store.paymentRequests,
+      items: store.paymentRequestItems,
+      allocations: store.paymentRequestAllocations,
+      create: store.addPaymentRequest,
+      settle: store.settlePaymentRequest,
+      cancel: store.cancelPaymentRequest,
+      summary: (requestId: number) => {
+        const request = store.paymentRequests.find(item => item.id === requestId)
+        if (!request) return undefined
+        const paid = store.paymentRequestAllocations.filter(item => item.paymentRequestId === requestId)
+          .filter(item => store.payments.some(payment => payment.id === item.paymentId && payment.status === 'Pagado'))
+          .reduce((sum, item) => sum + item.amount, 0)
+        return { requested: request.amount, paid, waived: request.waivedAmount, outstanding: Math.max(0, request.amount - paid - request.waivedAmount) }
+      },
+      forPrestation: (prestationId: number) => store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId)),
+      forEngagement: (engagementId: number) => store.paymentRequests.filter(request => request.originEngagementId === engagementId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.engagementId === engagementId)),
+    }
     const documents = {
       records: store.documents,
       allocations: store.documentPaymentAllocations,
@@ -120,6 +138,9 @@ export function useRepositories() {
       activities: store.activities,
       payments: store.payments,
       paymentAllocations: store.paymentAllocations,
+      paymentRequests: store.paymentRequests,
+      paymentRequestItems: store.paymentRequestItems,
+      paymentRequestAllocations: store.paymentRequestAllocations,
       documents: store.documents,
       documentPaymentAllocations: store.documentPaymentAllocations,
       documentAdjustments: store.documentAdjustments,
@@ -152,6 +173,7 @@ export function useRepositories() {
       prestationRepository: prestationsRepository,
       activityRepository: activities,
       paymentRepository: payments,
+      paymentRequestRepository: paymentRequests,
       documentRepository: documents,
       serviceRepository: services,
     }

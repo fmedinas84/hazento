@@ -10,7 +10,7 @@ import {
   DEMO_NOW, formatAccountEventDate, getAccountTimeline, getNextAccountEvent,
   type AccountTimelineEvent,
 } from './account360'
-import { formatMoney, useRepositories } from './repositories'
+import { formatMoney, parseMoney, useRepositories } from './repositories'
 import { OrganizationSelector } from './OrganizationSelector'
 import { verticalizeEngagementDetail } from './verticalText'
 
@@ -69,8 +69,9 @@ export function Account360View({ labels, go, onCreate }: { labels: Labels; go: N
   const activities = repository.activities.filter(record => record.accountId === accountId)
   const organization = repository.organizations.find(record => record.id === account?.organizationId)
   const worked = repository.accountRepository.getWorkedAmount(accountId)
-  const collected = repository.accountRepository.getAllocatedAmount(accountId)
-  const outstanding = repository.accountRepository.getOutstandingAmount(accountId)
+  const collected = repository.payments.filter(payment => payment.accountId === accountId && payment.status === 'Pagado').reduce((sum, payment) => sum + parseMoney(payment.amount), 0)
+  const accountRequests = repository.paymentRequests.filter(request => request.accountId === accountId && request.status === 'Pendiente')
+  const outstanding = accountRequests.reduce((sum, request) => sum + (repository.paymentRequestRepository.summary(request.id)?.outstanding || 0), 0)
   const timeline = useMemo(() => getAccountTimeline(repository, accountId), [repository, accountId])
   const nextEvent = useMemo(() => getNextAccountEvent(repository, accountId), [repository, accountId])
   const pendingActivities = activities.filter(record => record.status === 'Pendiente')

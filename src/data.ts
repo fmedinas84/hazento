@@ -211,6 +211,42 @@ export type DocumentAdjustmentData = {
   taxCorrectionStatus: 'No requerida' | 'Pendiente' | 'Resuelta'
 }
 
+export type PaymentRequestStatus = 'Pendiente' | 'Pagada' | 'Cerrada con saldo trasladado' | 'Cerrada con diferencia condonada' | 'Cancelada'
+
+export type PaymentRequestData = {
+  id: number
+  workspaceId: number
+  accountId: number
+  parentRequestId?: number
+  originPrestationId?: number
+  originEngagementId?: number
+  originOpportunityId?: number
+  status: PaymentRequestStatus
+  amount: number
+  dueDate?: string
+  note?: string
+  waivedAmount: number
+  waiverReason?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type PaymentRequestItemData = {
+  id: number
+  paymentRequestId: number
+  prestationId?: number
+  engagementId?: number
+  description: string
+  amount: number
+}
+
+export type PaymentRequestAllocationData = {
+  id: number
+  paymentId: number
+  paymentRequestId: number
+  amount: number
+}
+
 export const accounts: AccountData[] = [
   { id: 1, workspaceId: 1, initials: 'MP', name: 'María Pérez', firstName: 'María', lastName: 'Pérez', displayName: 'María Pérez', type: 'Persona', status: 'Activo', last: 'Hoy', next: '24 Ago', income: '$280.000', pending: '$35.000', email: 'maria.perez@email.cl', phone: '+56 9 4421 8870', rut: '17.284.391-2', color: '#dff5e8' },
   { id: 2, workspaceId: 1, initials: 'JS', name: 'Juan Soto', firstName: 'Juan', lastName: 'Soto', displayName: 'Juan Soto', organizationId: 1, role: 'Gerente Comercial', type: 'Persona', status: 'Activo', last: 'Ayer', next: '19 Ago', income: '$175.000', pending: '$70.000', email: 'juan@acme.cl', phone: '+56 9 6732 2210', rut: '15.931.240-8', color: '#ede9ff' },
@@ -308,6 +344,23 @@ export const documentPaymentAllocations: DocumentPaymentAllocationData[] = [
 ]
 
 export const documentAdjustments: DocumentAdjustmentData[] = []
+
+// Requests are created only by an explicit user action. These examples make the
+// distinction visible without deriving receivables automatically from work.
+export const paymentRequests: PaymentRequestData[] = [
+  { id: 1, workspaceId: 1, accountId: 2, originPrestationId: 4, status: 'Pendiente', amount: 30000, dueDate: '2026-08-28', note: 'Control de agosto', waivedAmount: 0, createdAt: '2026-08-14T11:00:00-04:00', updatedAt: '2026-08-14T11:00:00-04:00' },
+  { id: 2, workspaceId: 1, accountId: 1, originEngagementId: 1, status: 'Pagada', amount: 35000, waivedAmount: 0, createdAt: '2026-08-10T09:30:00-04:00', updatedAt: '2026-08-10T10:30:00-04:00' },
+]
+
+export const paymentRequestItems: PaymentRequestItemData[] = [
+  { id: 1, paymentRequestId: 1, prestationId: 4, description: 'Control', amount: 30000 },
+  { id: 2, paymentRequestId: 2, prestationId: 6, description: 'Sesión individual', amount: 35000 },
+]
+
+export const paymentRequestAllocations: PaymentRequestAllocationData[] = [
+  { id: 1, paymentId: 2, paymentRequestId: 1, amount: 15000 },
+  { id: 2, paymentId: 3, paymentRequestId: 2, amount: 35000 },
+]
 
 export const services = [
   { id: 1, name: 'Sesión individual', description: 'Sesión de atención individual', duration: '60 min', price: '$35.000', active: true },
