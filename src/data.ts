@@ -297,7 +297,7 @@ export const opportunities: OpportunityData[] = [
   { id: 2, accountId: 2, account: 'Juan Soto', title: 'Plan de 8 sesiones', amount: '$280.000', close: '28 Ago', contact: 'Juan Soto', last: 'Ayer', stage: 'Contactado', createdAt: '2026-08-08T10:00:00-04:00', updatedAt: '2026-08-17T16:00:00-04:00' },
   { id: 3, accountId: 3, account: 'Carolina Díaz', title: 'Evaluación y seguimiento', amount: '$165.000', close: '20 Ago', contact: 'Carolina Díaz', last: 'Hoy', stage: 'Contactado', createdAt: '2026-08-07T12:00:00-04:00', updatedAt: '2026-08-18T09:15:00-04:00' },
   { id: 4, accountId: 4, account: 'Pedro González', title: 'Taller bienestar equipo', amount: '$650.000', close: '30 Ago', contact: 'Pedro González', last: 'Hace 3 días', stage: 'Propuesta', createdAt: '2026-08-04T15:00:00-04:00', updatedAt: '2026-08-15T17:30:00-04:00' },
-  { id: 5, accountId: 6, account: 'Felipe Vargas', title: 'Retomar plan de seguimiento', amount: '$210.000', close: '05 Sep', contact: 'Felipe Vargas', last: 'Hace 7 días', stage: 'Negociación', createdAt: '2026-07-28T12:00:00-04:00', updatedAt: '2026-08-11T10:00:00-04:00' },
+  { id: 5, accountId: 6, account: 'Felipe Vargas', title: 'Retomar plan de seguimiento', amount: '$210.000', close: '05 Sep', contact: 'Felipe Vargas', last: 'Hace 7 días', stage: 'Propuesta', createdAt: '2026-07-28T12:00:00-04:00', updatedAt: '2026-08-11T10:00:00-04:00' },
 ]
 
 export const engagements: EngagementData[] = [

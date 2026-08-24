@@ -51,8 +51,12 @@ export type Document = DocumentData
 export type DocumentPaymentAllocation = DocumentPaymentAllocationData
 export type DocumentAdjustment = DocumentAdjustmentData
 export type Service = (typeof seedServices)[number]
+export type ProfileSettings = { firstName: string; lastName: string; email: string; phone: string }
+export type WorkspaceSettings = { name: string; country: string; currency: string; timezone: string }
 
 type DemoState = {
+  profile: ProfileSettings
+  workspace: WorkspaceSettings
   accounts: Account[]
   organizations: Organization[]
   contacts: Contact[]
@@ -72,6 +76,8 @@ type DemoState = {
 }
 
 type DemoStore = DemoState & {
+  updateProfile: (changes: Partial<ProfileSettings>) => void
+  updateWorkspace: (changes: Partial<WorkspaceSettings>) => void
   addAccount: (record: NewAccountRecord) => Account
   updateAccount: (id: number, changes: Partial<Account>) => void
   addOrganization: (record: NewOrganizationRecord) => Organization
@@ -105,6 +111,8 @@ type DemoStore = DemoState & {
 const STORAGE_KEY = 'hazento-demo-v4'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
+  profile: { firstName: 'Francisca', lastName: 'Medina', email: 'francisca@hazento.cl', phone: '+56 9 1234 5678' },
+  workspace: { name: 'Consulta Demo', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
   accounts: seedAccounts,
   organizations: seedOrganizations,
   contacts: seedContacts,
@@ -131,10 +139,12 @@ function migrateDemoState(saved: DemoState): DemoState {
   const accountIdFor = (name: string) => accounts.find(account => account.name === name)?.id
   return {
     ...saved,
+    profile: saved.profile ?? seedState.profile,
+    workspace: saved.workspace ?? seedState.workspace,
     accounts,
     organizations: saved.organizations ?? seedOrganizations,
     contacts: saved.contacts ?? seedContacts,
-    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account), status: opportunity.status ?? (['Ganada', 'Perdida'].includes(opportunity.stage) ? opportunity.stage as 'Ganada' | 'Perdida' : 'Abierta') })),
+    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, stage: opportunity.stage === 'Negociación' ? 'Propuesta' : opportunity.stage, accountId: opportunity.accountId ?? accountIdFor(opportunity.account), status: opportunity.status ?? (['Ganada', 'Perdida'].includes(opportunity.stage) ? opportunity.stage as 'Ganada' | 'Perdida' : 'Abierta') })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
     prestations: saved.prestations.map(prestation => ({
       ...prestation,
@@ -207,6 +217,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<DemoStore>(() => ({
     ...state,
+    updateProfile(changes) {
+      setState(current => ({ ...current, profile: { ...current.profile, ...changes } }))
+    },
+    updateWorkspace(changes) {
+      setState(current => ({ ...current, workspace: { ...current.workspace, ...changes } }))
+    },
     addAccount(record) {
       const result = prepareAccountCreate(state.accounts, record, colors)
       if (result.created) setState(current => ({ ...current, accounts: [result.account, ...current.accounts] }))

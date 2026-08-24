@@ -141,6 +141,8 @@ export function useRepositories() {
     const services = { records: store.services, create: store.addService, update: store.updateService, toggle: store.toggleService }
 
     return {
+      profile: store.profile,
+      workspace: store.workspace,
       accounts: store.accounts,
       organizations: organizations.records,
       contacts: store.contacts,
@@ -176,6 +178,8 @@ export function useRepositories() {
       addService: store.addService,
       updateService: store.updateService,
       toggleService: store.toggleService,
+      updateProfile: store.updateProfile,
+      updateWorkspace: store.updateWorkspace,
       resetDemo: store.resetDemo,
       accountRepository: accounts,
       organizationRepository: organizations,
