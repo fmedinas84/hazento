@@ -134,7 +134,7 @@ function migrateDemoState(saved: DemoState): DemoState {
     accounts,
     organizations: saved.organizations ?? seedOrganizations,
     contacts: saved.contacts ?? seedContacts,
-    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, accountId: opportunity.accountId ?? accountIdFor(opportunity.account), status: opportunity.status ?? (['Ganada', 'Perdida'].includes(opportunity.stage) ? opportunity.stage as 'Ganada' | 'Perdida' : 'Abierta') })),
+    opportunities: saved.opportunities.map(opportunity => ({ ...opportunity, stage: opportunity.stage === 'Negociación' ? 'Propuesta' : opportunity.stage, accountId: opportunity.accountId ?? accountIdFor(opportunity.account), status: opportunity.status ?? (['Ganada', 'Perdida'].includes(opportunity.stage) ? opportunity.stage as 'Ganada' | 'Perdida' : 'Abierta') })),
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
     prestations: saved.prestations.map(prestation => ({
       ...prestation,
