@@ -7,6 +7,8 @@ import { resolvePrestationName } from './prestationName'
 import { formatMoney, useRepositories } from './repositories'
 import { durationOptions, formatDuration, serviceDurationMinutes } from './duration'
 import { PaymentRequestCreateDialog, PaymentRequestDetailDialog } from './PaymentRequests'
+import { demoToday } from './demoTime'
+import { normalizeSearchText } from './searchText'
 
 type Labels = typeof verticalLabels[Vertical]
 type CalendarView = 'Día' | 'Semana' | 'Mes'
@@ -46,7 +48,7 @@ function buildTimelineDays(rows: TimelineRow[]): TimelineDay[] {
   if (!rows.length) return []
   const firstSerial = Math.min(...rows.map(row => Math.min(timelineDaySerial(row.start), ...row.milestones.map(item => timelineDaySerial(item.timestamp)))))
   const lastSerial = Math.max(...rows.map(row => Math.max(timelineDaySerial(row.end), ...row.milestones.map(item => timelineDaySerial(item.timestamp)))))
-  const todaySerial = timelineDaySerial(Date.now())
+  const todaySerial = timelineDaySerial(demoToday().getTime())
   return Array.from({ length: lastSerial - firstSerial + 1 }, (_, index) => {
     const serial = firstSerial + index
     const timestamp = timelineTimestamp(serial)
@@ -75,9 +77,9 @@ function formatDate(timestamp: number, includeTime = false) {
   return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', ...(includeTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}), timeZone: 'America/Santiago' }).format(new Date(timestamp)).replace('.', '')
 }
 
-function formatDisplayDate(date: string, time: string) {
+function formatDisplayDate(date: string, time?: string) {
   const [, month, day] = date.split('-').map(Number)
-  return `${day} ${monthNames[month - 1]} · ${time}`
+  return `${day} ${monthNames[month - 1]}${time ? ` · ${time}` : ''}`
 }
 
 function inputDate(value: string) {
@@ -95,14 +97,15 @@ function Dialog({ title, subtitle, onClose, children }: { title: string; subtitl
   return <div className="modal-backdrop" onMouseDown={onClose}><section className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={event => event.stopPropagation()}><header><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={18}/></button></header>{children}</section></div>
 }
 
-function PrestationDialog({ record, labels, go, onClose }: { record: PrestationData; labels: Labels; go: Navigate; onClose: () => void }) {
+function LegacyPrestationDialog({ record, labels, go, onClose }: { record: PrestationData; labels: Labels; go: Navigate; onClose: () => void }) {
   const repositories = useRepositories()
   const [editing, setEditing] = useState(false)
   const [requestingPayment, setRequestingPayment] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<number | null>(null)
   const scheduled = inputDate(record.date)
   const engagement = repositories.engagements.find(item => item.id === record.engagementId)
-  const currentDuration = record.durationMinutes ?? serviceDurationMinutes(repositories.services.find(service => service.id === record.serviceId)?.duration)
+  const scenarioServices = labels.demoServices
+  const currentDuration = record.durationMinutes ?? serviceDurationMinutes(scenarioServices.find(service => service.id === record.serviceId)?.duration)
   const paymentStatus = repositories.paymentRequestRepository.collectionStatusForPrestation(record.id)
   const paymentRequests = repositories.paymentRequestRepository.forPrestation(record.id)
   const activeRequests = paymentRequests.filter(request => request.status === 'Pendiente')
@@ -114,10 +117,60 @@ function PrestationDialog({ record, labels, go, onClose }: { record: PrestationD
     event.preventDefault()
     const values = Object.fromEntries(new FormData(event.currentTarget).entries())
     const serviceId = Number(values.serviceId) || undefined
-    repositories.updatePrestation(record.id, { name: resolvePrestationName(String(values.name || ''), serviceId, repositories.services, labels.prestation), serviceId, date: formatDisplayDate(String(values.date), String(values.time)), durationMinutes: Number(values.durationMinutes) || currentDuration, ...(labels.prestation === 'Contenido' ? { description: String(values.description || '').trim() } : {}), ...(labels.supportsFollowUp ? { followUpNote: String(values.followUpNote || '').trim() } : {}) })
+    repositories.updatePrestation(record.id, { name: resolvePrestationName(String(values.name || ''), serviceId, scenarioServices, labels.prestation), serviceId, date: formatDisplayDate(String(values.date), labels.usesTime ? String(values.time) : undefined), durationMinutes: labels.usesDuration ? Number(values.durationMinutes) || currentDuration : undefined, status: String(values.status || record.status), ...(labels.prestation === 'Contenido' ? { description: String(values.description || '').trim() } : {}), ...(labels.supportsFollowUp ? { followUpNote: String(values.followUpNote || '').trim() } : {}) })
     setEditing(false)
   }
   return <Dialog title={editing ? `Editar ${labels.prestation.toLowerCase()}` : record.name} subtitle={`${record.account} · ${record.date}`} onClose={onClose}>{editing ? <form onSubmit={save}><div className="form-grid single"><label><span>Nombre (opcional)</span><input name="name" autoFocus defaultValue={record.name} placeholder="Si lo dejas vacío, usaremos el tipo"/></label><label><span>Tipo ({labels.service.toLowerCase()})</span><select name="serviceId" defaultValue={record.serviceId || ''}><option value="">Sin tipo</option>{repositories.services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label>{labels.prestation === 'Contenido' && <label className="form-span"><span>Descripción</span><textarea name="description" rows={4} defaultValue={record.description || ''}/></label>}{labels.supportsFollowUp && <label className="form-span"><span>Seguimiento</span><textarea name="followUpNote" rows={4} defaultValue={record.followUpNote || ''}/></label>}<label><span>Fecha</span><input name="date" type="date" required defaultValue={scheduled.date}/></label><div className="form-span form-inline-pair"><label><span>Hora</span><input name="time" type="time" required defaultValue={scheduled.time}/></label><label><span>Duración</span><select name="durationMinutes" defaultValue={currentDuration}>{durationOptions.map(minutes => <option value={minutes} key={minutes}>{formatDuration(minutes)}</option>)}</select></label></div></div><footer className="modal-actions"><button type="button" className="ghost-btn" onClick={() => setEditing(false)}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer></form> : <><div className="record-summary"><p><span>{labels.account}</span><button className="text-btn" onClick={() => go('account', { id: record.accountId })}>{record.account}</button></p>{engagement && <p><span>{labels.engagement}</span><button className="text-btn" onClick={() => go('engagement', { id: engagement.id })}>{engagement.name}</button></p>}<p><span>Tipo</span><b>{repositories.services.find(service => service.id === record.serviceId)?.name || 'Sin tipo'}</b></p><p><span>Duración</span><b>{formatDuration(currentDuration)}</b></p>{!labels.supportsFollowUp && <p><span>Estado</span><Badge>{record.status}</Badge></p>}<p><span>Monto</span><b>{record.amount}</b></p><p><span>Pago</span><Badge>{paymentStatus}</Badge></p></div>{activeRequests.length > 0 && <button type="button" className="prestation-description agenda-request-summary" onClick={() => setSelectedRequest(activeRequests[0].id)}><span className="section-kicker">Solicitud de pago</span><p>Solicitado {formatMoney(requestTotals.requested)} · Pagado {formatMoney(requestTotals.paid)} · Saldo {formatMoney(requestTotals.outstanding)}</p><Badge>{activeRequests[0].status}</Badge></button>}{labels.prestation === 'Contenido' && <section className="prestation-description"><span className="section-kicker">Descripción</span><p>{record.description || 'Sin descripción registrada'}</p></section>}{labels.supportsFollowUp && <section className="followup-detail"><span className="section-kicker">Seguimiento</span><p>{record.followUpNote || 'Sin seguimiento registrado'}</p></section>}<div className="status-actions"><button onClick={() => repositories.updatePrestation(record.id, { status: 'Completada' })}><Check size={16}/>Completar</button>{record.status !== 'Programada' && <button onClick={() => repositories.updatePrestation(record.id, { status: 'Programada' })}><Clock3 size={16}/>Volver a programada</button>}<button onClick={() => repositories.updatePrestation(record.id, { status: 'No asistió' })}>No asistió</button><button onClick={() => repositories.updatePrestation(record.id, { status: 'Cancelada' })}>Cancelar</button></div><footer className="modal-actions"><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar</button><button className="secondary-btn" onClick={() => setRequestingPayment(true)}><CircleDollarSign size={15}/>Generar solicitud de pago</button><button className="primary-btn" onClick={onClose}>Listo</button></footer></>}{requestingPayment && <PaymentRequestCreateDialog labels={labels} accountId={record.accountId} prestationId={record.id} onClose={() => setRequestingPayment(false)}/>} {selectedRequest && <PaymentRequestDetailDialog requestId={selectedRequest} onClose={() => setSelectedRequest(null)}/>}</Dialog>
+}
+
+function PrestationDialog({ record, labels, go, onClose }: { record: PrestationData; labels: Labels; go: Navigate; onClose: () => void }) {
+  const repositories = useRepositories()
+  const [editing, setEditing] = useState(false)
+  const [requestingPayment, setRequestingPayment] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState<number | null>(null)
+  const scheduled = inputDate(record.date)
+  const engagement = repositories.engagements.find(item => item.id === record.engagementId)
+  const services = labels.demoServices
+  const currentDuration = record.durationMinutes ?? serviceDurationMinutes(services.find(service => service.id === record.serviceId)?.duration)
+  const activeRequests = repositories.paymentRequestRepository.forPrestation(record.id).filter(request => request.status === 'Pendiente')
+  const requestTotals = activeRequests.reduce((totals, request) => {
+    const summary = repositories.paymentRequestRepository.summary(request.id)
+    return { requested: totals.requested + request.amount, paid: totals.paid + (summary?.paid || 0), outstanding: totals.outstanding + (summary?.collectibleOutstanding || 0) }
+  }, { requested: 0, paid: 0, outstanding: 0 })
+  const save = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries())
+    const serviceId = Number(values.serviceId) || undefined
+    repositories.updatePrestation(record.id, {
+      name: resolvePrestationName(String(values.name || ''), serviceId, services, labels.prestation), serviceId,
+      date: formatDisplayDate(String(values.date), labels.usesTime ? String(values.time) : undefined),
+      durationMinutes: labels.usesDuration ? Number(values.durationMinutes) || currentDuration : undefined,
+      status: String(values.status || record.status),
+      ...(labels.prestation === 'Contenido' ? { description: String(values.description || '').trim() } : {}),
+      ...(labels.supportsFollowUp ? { followUpNote: String(values.followUpNote || '').trim() } : {}),
+    })
+    setEditing(false)
+  }
+  return <Dialog title={editing ? `Editar ${labels.prestation.toLowerCase()}` : record.name} subtitle={`${record.account} · ${record.date}`} onClose={onClose}>
+    {editing ? <form onSubmit={save}><div className="form-grid single">
+      <label><span>Nombre (opcional)</span><input name="name" autoFocus defaultValue={record.name} placeholder="Si lo dejas vacío, usaremos el tipo"/></label>
+      <label><span>Tipo ({labels.service.toLowerCase()})</span><select name="serviceId" defaultValue={record.serviceId || ''}><option value="">Sin tipo</option>{services.filter(service => service.active).map(service => <option value={service.id} key={service.id}>{service.name}</option>)}</select></label>
+      {labels.prestation === 'Contenido' && <label className="form-span"><span>Descripción</span><textarea name="description" rows={4} defaultValue={record.description || ''}/></label>}
+      {labels.supportsFollowUp && <label className="form-span"><span>Seguimiento</span><textarea name="followUpNote" rows={4} defaultValue={record.followUpNote || ''}/></label>}
+      <label><span>{labels.dateLabel}</span><input name="date" type="date" required defaultValue={scheduled.date}/></label>
+      {labels.usesTime && <label><span>Hora</span><input name="time" type="time" required defaultValue={scheduled.time}/></label>}
+      {labels.usesDuration && <label><span>Duración</span><select name="durationMinutes" defaultValue={currentDuration}>{durationOptions.map(minutes => <option value={minutes} key={minutes}>{formatDuration(minutes)}</option>)}</select></label>}
+      <label><span>Estado</span><select name="status" defaultValue={record.status}>{labels.prestationStatuses.map(status => <option key={status}>{status}</option>)}</select></label>
+    </div><footer className="modal-actions"><button type="button" className="ghost-btn" onClick={() => setEditing(false)}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer></form> : <>
+      <div className="record-summary"><p><span>{labels.account}</span><button className="text-btn" onClick={() => go('account', { id: record.accountId })}>{record.account}</button></p>{engagement && <p><span>{labels.engagement}</span><button className="text-btn" onClick={() => go('engagement', { id: engagement.id })}>{engagement.name}</button></p>}<p><span>Tipo</span><b>{services.find(service => service.id === record.serviceId)?.name || 'Sin tipo'}</b></p>{labels.usesDuration && <p><span>Duración</span><b>{formatDuration(currentDuration)}</b></p>}<p><span>Estado</span><Badge>{record.status}</Badge></p><p><span>Monto</span><b>{record.amount}</b></p><p><span>Pago</span><Badge>{repositories.paymentRequestRepository.collectionStatusForPrestation(record.id)}</Badge></p></div>
+      {activeRequests.length > 0 && <button type="button" className="prestation-description agenda-request-summary" onClick={() => setSelectedRequest(activeRequests[0].id)}><span className="section-kicker">Solicitud de pago</span><p>Solicitado {formatMoney(requestTotals.requested)} · Pagado {formatMoney(requestTotals.paid)} · Saldo {formatMoney(requestTotals.outstanding)}</p><Badge>{activeRequests[0].status}</Badge></button>}
+      {labels.prestation === 'Contenido' && <section className="prestation-description"><span className="section-kicker">Descripción</span><p>{record.description || 'Sin descripción registrada'}</p></section>}
+      {labels.supportsFollowUp && <section className="followup-detail"><span className="section-kicker">Seguimiento</span><p>{record.followUpNote || 'Sin seguimiento registrado'}</p></section>}
+      <div className="status-actions">{labels.prestationStatuses.map(status => status !== record.status && <button key={status} onClick={() => repositories.updatePrestation(record.id, { status })}>{status === labels.completedStatus && <Check size={16}/>} {status}</button>)}</div>
+      <footer className="modal-actions"><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar</button><button className="secondary-btn" onClick={() => setRequestingPayment(true)}><CircleDollarSign size={15}/>Generar solicitud de pago</button><button className="primary-btn" onClick={onClose}>Listo</button></footer>
+    </>}
+    {requestingPayment && <PaymentRequestCreateDialog labels={labels} accountId={record.accountId} prestationId={record.id} onClose={() => setRequestingPayment(false)}/>} {selectedRequest && <PaymentRequestDetailDialog requestId={selectedRequest} onClose={() => setSelectedRequest(null)}/>}
+  </Dialog>
 }
 
 function ActivityDialog({ record, labels, go, onClose }: { record: ActivityData; labels: Labels; go: Navigate; onClose: () => void }) {
@@ -128,10 +181,23 @@ function ActivityDialog({ record, labels, go, onClose }: { record: ActivityData;
   return <Dialog title={record.source === 'prestation_follow_up' ? 'Seguimiento' : record.title} subtitle={formatDate(timestamp, true)} onClose={onClose}><div className="record-summary"><p><span>{labels.account}</span>{account ? <button className="text-btn" onClick={() => go('account', { id: account.id })}>{account.name}</button> : <b>Sin cuenta</b>}</p>{prestation && <p><span>{labels.prestation}</span><button className="text-btn" onClick={() => go('prestations', { id: prestation.id })}>{prestation.name}</button></p>}<p><span>Tipo</span><b>{record.type}</b></p><p><span>Estado</span><Badge>{record.status}</Badge></p></div><section className="prestation-description"><span className="section-kicker">Detalle</span><p>{record.description || record.relation}</p></section><footer className="modal-actions"><button className="secondary-btn" onClick={() => go('activities', { id: record.id })}>Ver actividades</button><button className="primary-btn" onClick={onClose}>Listo</button></footer></Dialog>
 }
 
-function MonthCalendar({ events, anchor, labels, onOpen, openRequestIds }: { events: CalendarEvent[]; anchor: Date; labels: Labels; onOpen: (event: CalendarEvent) => void; openRequestIds: Set<number> }) {
+function LegacyMonthCalendar({ events, anchor, labels, onOpen, openRequestIds }: { events: CalendarEvent[]; anchor: Date; labels: Labels; onOpen: (event: CalendarEvent) => void; openRequestIds: Set<number> }) {
   const year = anchor.getFullYear(); const month = anchor.getMonth(); const first = new Date(year, month, 1); const offset = (first.getDay() + 6) % 7; const start = new Date(year, month, 1 - offset)
   const cells = Array.from({ length: 42 }, (_, index) => new Date(year, start.getMonth(), start.getDate() + index))
   return <section className="month-calendar card" aria-label={`Vista mensual de ${labels.planningLabel.toLowerCase()}`}><header>{weekDays.map(day => <span key={day}>{day}</span>)}</header><div>{cells.map(cell => { const inMonth = cell.getMonth() === month; const dayEvents = events.filter(event => { const date = new Date(event.timestamp); return date.getFullYear() === cell.getFullYear() && date.getMonth() === cell.getMonth() && date.getDate() === cell.getDate() }); const today = year === 2026 && month === 7 && cell.getDate() === 18 && inMonth; return <article className={cls(!inMonth && 'outside', today && 'today')} key={cell.toISOString()}><time>{cell.getDate()}</time>{dayEvents.slice(0, 3).map(event => <button className={cls('planning-month-event', event.kind, event.source === 'prestation_follow_up' && 'follow-up')} onClick={() => onOpen(event)} title={`${event.title} · ${event.accountName}`} key={event.id}><b>{new Date(event.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}</b>{event.kind === 'prestation' && openRequestIds.has(event.recordId) && <i className="calendar-payment-indicator" title="Solicitud de pago abierta"><CircleDollarSign size={12}/></i>}<span>{event.source === 'prestation_follow_up' ? 'Seguimiento' : event.title}</span><small>{event.accountName}</small></button>)}{dayEvents.length > 3 && <em>+{dayEvents.length - 3} más</em>}</article> })}</div></section>
+}
+
+function MonthCalendar({ events, anchor, labels, onOpen, openRequestIds }: { events: CalendarEvent[]; anchor: Date; labels: Labels; onOpen: (event: CalendarEvent) => void; openRequestIds: Set<number> }) {
+  const [dayEvents, setDayEvents] = useState<CalendarEvent[] | null>(null)
+  const year = anchor.getFullYear(); const month = anchor.getMonth(); const first = new Date(year, month, 1); const offset = (first.getDay() + 6) % 7; const start = new Date(year, month, 1 - offset)
+  const cells = Array.from({ length: 42 }, (_, index) => new Date(year, start.getMonth(), start.getDate() + index))
+  const today = demoToday()
+  return <><section className="month-calendar card" aria-label={`Vista mensual de ${labels.planningLabel.toLowerCase()}`}><header>{weekDays.map(day => <span key={day}>{day}</span>)}</header><div>{cells.map(cell => {
+    const inMonth = cell.getMonth() === month
+    const matching = events.filter(event => { const date = new Date(event.timestamp); return date.getFullYear() === cell.getFullYear() && date.getMonth() === cell.getMonth() && date.getDate() === cell.getDate() })
+    const isToday = cell.toDateString() === today.toDateString()
+    return <article className={cls(!inMonth && 'outside', isToday && 'today')} key={cell.toISOString()}><time>{cell.getDate()}</time>{matching.slice(0, 3).map(event => <button className={cls('planning-month-event', event.kind, event.source === 'prestation_follow_up' && 'follow-up')} onClick={() => onOpen(event)} title={`${event.title} · ${event.accountName}`} key={event.id}><b>{new Date(event.timestamp).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}</b>{event.kind === 'prestation' && openRequestIds.has(event.recordId) && <i className="calendar-payment-indicator" title="Solicitud de pago abierta"><CircleDollarSign size={12}/></i>}<span>{event.source === 'prestation_follow_up' ? 'Seguimiento' : event.title}</span><small>{event.accountName}</small></button>)}{matching.length > 3 && <button className="month-more-events" onClick={() => setDayEvents(matching)} aria-label={`Ver ${matching.length - 3} eventos más del ${cell.getDate()}`}>+{matching.length - 3} más</button>}</article>
+  })}</div></section>{dayEvents && <Dialog title="Eventos del día" subtitle={formatDate(dayEvents[0].timestamp)} onClose={() => setDayEvents(null)}><div className="day-events-list">{dayEvents.map(event => <button key={event.id} onClick={() => { setDayEvents(null); onOpen(event) }}><span><b>{event.title}</b><small>{event.accountName} · {formatDate(event.timestamp, true)}</small></span><ChevronRight size={16}/></button>)}</div></Dialog>}</>
 }
 
 function WeekCalendar({ events, dayOnly, onOpen, openRequestIds }: { events: CalendarEvent[]; dayOnly: boolean; onOpen: (event: CalendarEvent) => void; openRequestIds: Set<number> }) {
@@ -167,14 +233,14 @@ function TimelinePanel({ labels, go, onSelectPrestation }: { labels: Labels; go:
   const [milestoneGroup, setMilestoneGroup] = useState<Milestone[] | null>(null)
   const timelineRef = useRef<HTMLElement>(null)
   const rows = useMemo(() => buildTimelineRows(repositories), [repositories])
-  const filtered = rows.dated.filter(row => (status === 'Todos' || (status === 'Activos' ? row.engagement.status === 'Activo' : row.engagement.status === 'Completado')) && `${row.engagement.name} ${row.account?.name || row.engagement.account}`.toLowerCase().includes(query.toLowerCase()))
+  const filtered = rows.dated.filter(row => (status === 'Todos' || (status === 'Activos' ? row.engagement.status === 'Activo' : row.engagement.status === 'Completado')) && normalizeSearchText(`${row.engagement.name} ${row.account?.name || row.engagement.account}`).includes(normalizeSearchText(query)))
   const days = buildTimelineDays(filtered)
   const firstSerial = days[0]?.serial || 0
   const timelineWidth = days.length * timelineDayWidth
   const offsetFor = (timestamp: number) => (timelineDaySerial(timestamp) - firstSerial) * timelineDayWidth
   const moveTimeline = (daysToMove: number) => timelineRef.current?.scrollBy({ left: daysToMove * timelineDayWidth, behavior: 'smooth' })
   const moveToToday = () => {
-    const todayOffset = (timelineDaySerial(Date.now()) - firstSerial) * timelineDayWidth
+    const todayOffset = (timelineDaySerial(demoToday().getTime()) - firstSerial) * timelineDayWidth
     timelineRef.current?.scrollTo({ left: Math.max(0, todayOffset - 280), behavior: 'smooth' })
   }
   const editRecord = repositories.engagements.find(record => record.id === editingDates)
@@ -190,6 +256,7 @@ function TimelinePanel({ labels, go, onSelectPrestation }: { labels: Labels; go:
         <label className="inline-search planning-search"><Search size={16}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={`Buscar ${labels.engagement.toLowerCase()} o ${labels.account.toLowerCase()}`}/></label>
       </div>
     </div>
+    {filtered.length > 0 && <section className="timeline-mobile-summary card" aria-label={`Resumen de ${labels.engagements.toLowerCase()}`}>{filtered.map(row => <article key={row.engagement.id}><button onClick={() => go('engagement', { id: row.engagement.id })}><b>{row.engagement.name}</b><small>{row.account?.name || row.engagement.account} · {formatDate(row.start)} → {formatDate(row.end)}</small></button><span>{row.milestones.length} {row.milestones.length === 1 ? labels.prestation.toLowerCase() : labels.prestations.toLowerCase()} · {row.progress}%</span></article>)}</section>}
     {filtered.length ? <section className="timeline-board card" ref={timelineRef} aria-label={`Cronograma de ${labels.engagements.toLowerCase()}`}>
       <div className="timeline-canvas" style={{ width: 245 + timelineWidth }}>
         <header className="timeline-day-header">

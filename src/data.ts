@@ -6,6 +6,9 @@ export const verticalLabels = {
     account: 'Paciente', accounts: 'Pacientes', engagement: 'Tratamiento', engagements: 'Tratamientos', prestation: 'Atención', prestations: 'Atenciones', navigationPrestation: 'Atenciones', service: 'Tipo de atención', services: 'Tipos de atención',
     peopleTab: 'Pacientes', organization: 'Empresa', organizations: 'Empresas', organizationRelationship: 'Representa a', organizationList: 'Organización', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo paciente', createEngagement: 'Nuevo tratamiento', createPrestation: 'Nueva atención', defaultAgendaView: 'Semana', supportsFollowUp: true, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
+    usesTime: true, usesDuration: true, dateLabel: 'Fecha', scheduledStatus: 'Programada', completedStatus: 'Completada', prestationStatuses: ['Programada','Completada','Cancelada','No asistió'],
+    scheduledMetric: 'Atenciones programadas', scheduledToday: 'Atenciones programadas para hoy', completedActivity: 'Atención completada',
+    demoServices: [{ id: 1, name: 'Sesión individual', description: 'Sesión de atención individual', duration: '60 min', price: '$35.000', active: true },{ id: 2, name: 'Evaluación inicial', description: 'Evaluación y definición de objetivos', duration: '90 min', price: '$45.000', active: true },{ id: 3, name: 'Control', description: 'Sesión breve de seguimiento', duration: '45 min', price: '$30.000', active: true },{ id: 4, name: 'Taller grupal', description: 'Sesión para equipos u organizaciones', duration: '120 min', price: '$180.000', active: true }],
     engagementDescription: 'Organiza tratamientos o planes de atención y revisa el avance de sus sesiones.',
   },
   creative: {
@@ -13,6 +16,9 @@ export const verticalLabels = {
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
     peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', organizationRelationship: 'Representa a', organizationList: 'Organización', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
+    usesTime: false, usesDuration: false, dateLabel: 'Fecha de entrega', scheduledStatus: 'Pendiente', completedStatus: 'Completado', prestationStatuses: ['Pendiente','En proceso','Completado','Cancelado'],
+    scheduledMetric: 'Entregables pendientes', scheduledToday: 'Entregables con entrega hoy', completedActivity: 'Entregable completado',
+    demoServices: [{ id: 1, name: 'Diseño de logo', description: 'Diseño y entrega de identidad gráfica principal', duration: '60 min', price: '$400.000', active: true },{ id: 2, name: 'Identidad visual', description: 'Sistema visual completo para una marca', duration: '90 min', price: '$850.000', active: true },{ id: 3, name: 'Diseño web', description: 'Diseño de interfaz y experiencia web', duration: '60 min', price: '$1.200.000', active: true },{ id: 4, name: 'Piezas para redes', description: 'Pack de piezas para comunicación digital', duration: '60 min', price: '$280.000', active: true }],
     engagementDescription: 'Organiza tus proyectos y revisa entregables, avance y cobros.',
   },
   creator: {
@@ -20,6 +26,9 @@ export const verticalLabels = {
     account: 'Contacto', accounts: 'Contactos', engagement: 'Partnership', engagements: 'Partnerships', prestation: 'Contenido', prestations: 'Contenidos', navigationPrestation: 'Contenido', service: 'Servicio', services: 'Servicios',
     peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', organizationRelationship: 'Representa a', organizationList: 'Organización', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo contacto', createEngagement: 'Nuevo partnership', createPrestation: 'Nuevo contenido', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
+    usesTime: false, usesDuration: false, dateLabel: 'Fecha de entrega o publicación', scheduledStatus: 'Pendiente', completedStatus: 'Publicado', prestationStatuses: ['Pendiente','En producción','Aprobado','Programado','Publicado','Cancelado'],
+    scheduledMetric: 'Contenidos pendientes', scheduledToday: 'Contenidos para hoy', completedActivity: 'Contenido publicado',
+    demoServices: [{ id: 1, name: 'Reel', description: 'Video vertical para redes sociales', duration: '60 min', price: '$350.000', active: true },{ id: 2, name: 'Stories', description: 'Secuencia de historias para campaña', duration: '60 min', price: '$180.000', active: true },{ id: 3, name: 'Post', description: 'Publicación estática o carrusel', duration: '60 min', price: '$220.000', active: true },{ id: 4, name: 'UGC', description: 'Contenido generado para uso de la marca', duration: '60 min', price: '$300.000', active: true }],
     engagementDescription: 'Gestiona tus acuerdos con marcas, contenidos, fechas y cobros.',
   },
   sessions: {
@@ -27,6 +36,9 @@ export const verticalLabels = {
     account: 'Alumno', accounts: 'Alumnos', engagement: 'Plan', engagements: 'Planes', prestation: 'Clase', prestations: 'Clases', navigationPrestation: 'Clases', service: 'Servicio', services: 'Servicios',
     peopleTab: 'Alumnos', organization: 'Empresa', organizations: 'Empresas', organizationRelationship: 'Representa a', organizationList: 'Organización', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo alumno', createEngagement: 'Nuevo plan', createPrestation: 'Nueva clase', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Agenda', calendarEnabled: true, timelineEnabled: false,
+    usesTime: true, usesDuration: true, dateLabel: 'Fecha', scheduledStatus: 'Programada', completedStatus: 'Completada', prestationStatuses: ['Programada','Completada','Cancelada','No asistió'],
+    scheduledMetric: 'Clases programadas', scheduledToday: 'Clases programadas para hoy', completedActivity: 'Clase completada',
+    demoServices: [{ id: 1, name: 'Clase individual', description: 'Clase personalizada uno a uno', duration: '60 min', price: '$25.000', active: true },{ id: 2, name: 'Clase grupal', description: 'Clase para dos o más alumnos', duration: '90 min', price: '$18.000', active: true },{ id: 3, name: 'Evaluación', description: 'Evaluación de avance y próximos objetivos', duration: '60 min', price: '$25.000', active: true },{ id: 4, name: 'Taller intensivo', description: 'Sesión temática de mayor duración', duration: '120 min', price: '$45.000', active: true }],
     engagementDescription: 'Organiza los planes de tus alumnos y revisa clases, avance y pagos.',
   },
   other: {
@@ -34,6 +46,9 @@ export const verticalLabels = {
     account: 'Cliente', accounts: 'Clientes', engagement: 'Proyecto', engagements: 'Proyectos', prestation: 'Entregable', prestations: 'Entregables', navigationPrestation: 'Entregables', service: 'Servicio', services: 'Servicios',
     peopleTab: 'Personas', organization: 'Empresa', organizations: 'Empresas', organizationRelationship: 'Representa a', organizationList: 'Organización', createOrganization: 'Nueva empresa',
     createAccount: 'Nuevo cliente', createEngagement: 'Nuevo proyecto', createPrestation: 'Nuevo entregable', defaultAgendaView: 'Semana', supportsFollowUp: false, planningLabel: 'Planificación', calendarEnabled: true, timelineEnabled: true,
+    usesTime: false, usesDuration: false, dateLabel: 'Fecha de entrega', scheduledStatus: 'Pendiente', completedStatus: 'Completado', prestationStatuses: ['Pendiente','En proceso','Completado','Cancelado'],
+    scheduledMetric: 'Entregables pendientes', scheduledToday: 'Entregables con entrega hoy', completedActivity: 'Entregable completado',
+    demoServices: [{ id: 1, name: 'Asesoría', description: 'Servicio profesional personalizado', duration: '60 min', price: '$120.000', active: true },{ id: 2, name: 'Diagnóstico', description: 'Levantamiento y definición de necesidades', duration: '90 min', price: '$180.000', active: true },{ id: 3, name: 'Implementación', description: 'Ejecución del trabajo acordado', duration: '60 min', price: '$450.000', active: true },{ id: 4, name: 'Entrega final', description: 'Cierre y entrega de resultados', duration: '60 min', price: '$200.000', active: true }],
     engagementDescription: 'Organiza tus proyectos y revisa entregas, avance y cobros.',
   },
 } as const

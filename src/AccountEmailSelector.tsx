@@ -107,7 +107,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
       autoFocus
       aria-expanded={open}
       aria-controls="account-email-results"
-      onFocus={() => setOpen(true)}
+      onFocus={() => setOpen(Boolean(query.trim()))}
       onChange={event => { setQuery(event.target.value); setOpen(true); setCreating(false); setDuplicate(null); if (selectedAccountId) onSelect(null) }}
       onKeyDown={event => {
         if (event.key === 'Escape') setOpen(false)
@@ -120,7 +120,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
       <div className="account-result-heading"><Search size={14}/>{normalizedQuery ? 'Coincidencias por email' : `${labels.accounts} recientes`}</div>
       {matches.map(account => <button type="button" role="option" aria-selected={account.id === selectedAccountId} onClick={() => choose(account)} key={account.id}>
         <span className="account-result-avatar">{account.initials || <UserRound size={15}/>}</span><span><b>{account.email || 'Sin email'}</b><small>{account.name} · {labels.account} {account.status.toLowerCase()}</small></span>{account.id === selectedAccountId && <Check size={16}/>}</button>)}
-      {!matches.length && normalizedQuery && <p>No encontramos una cuenta con ese email.</p>}
+      {!matches.length && normalizedQuery && <p>No encontramos {labels.account.toLowerCase()} con ese email.</p>}
       {validEmail && !exactMatch && <button type="button" className="account-create-option" onClick={startCreation}><Plus size={16}/><span><b>{inlineCreateLabel}</b><small>Usar {normalizeEmail(query)}</small></span></button>}
       {normalizedQuery && !validEmail && <p>Completa un email válido para crear {labels.account.toLowerCase()}.</p>}
     </div>}
@@ -131,7 +131,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
       <div><span className="section-kicker">Sin salir del formulario</span><h3>{inlineCreateLabel}</h3><p>Al guardar quedará seleccionado automáticamente.</p></div>
       <div className="inline-account-fields" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); createAccount() } }}>
         <label><span>Email *</span><input value={normalizeEmail(query)} readOnly /></label>
-        <label><span>Nombre de la persona *</span><input value={newName} onChange={event => { setNewName(event.target.value); setCreateError('') }} required autoFocus /></label>
+        <label><span>Nombre del {labels.account.toLowerCase()} *</span><input value={newName} onChange={event => { setNewName(event.target.value); setCreateError('') }} required autoFocus /></label>
         <label><span>Teléfono</span><input value={newPhone} onChange={event => setNewPhone(event.target.value)} autoComplete="tel" /></label>
         <OrganizationSelector labels={labels} organizations={organizations} selectedId={organizationId} onSelect={organization => setOrganizationId(organization?.id)} onCreate={onCreateOrganization}/>
         <label><span>Cargo / Rol</span><input value={role} onChange={event => setRole(event.target.value)} placeholder="Opcional" disabled={!organizationId}/></label>
