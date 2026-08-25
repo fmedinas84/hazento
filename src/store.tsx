@@ -34,6 +34,13 @@ import {
 import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
 import { findOrganizationByName, type NewOrganizationRecord } from './organizationName'
 import { validateAdjustment, validateAllocation } from './documentPayments'
+import {
+  defaultReminderSettings,
+  reconcileAppointmentReminders,
+  type AppointmentReminder,
+  type ReminderSettings,
+  type ReminderSyncContext,
+} from './reminders'
 
 export type Account = AccountData
 export type Contact = ContactData
@@ -54,6 +61,21 @@ export type Service = (typeof seedServices)[number]
 export type ProfileSettings = { firstName: string; lastName: string; email: string; phone: string }
 export type WorkspaceSettings = { name: string; country: string; currency: string; timezone: string }
 
+const seedAppointmentReminders: AppointmentReminder[] = [{
+  id: 1,
+  workspaceId: 1,
+  prestationId: 9,
+  accountId: 5,
+  recipientEmail: 'daniela@oslo.cl',
+  scheduledFor: '2026-08-19T19:30:00.000Z',
+  status: 'scheduled',
+  slot: 'primary',
+  leadHours: 24,
+  provider: 'mock',
+  createdAt: '2026-08-18T12:00:00.000Z',
+  updatedAt: '2026-08-18T12:00:00.000Z',
+}]
+
 type DemoState = {
   profile: ProfileSettings
   workspace: WorkspaceSettings
@@ -73,13 +95,15 @@ type DemoState = {
   documentPaymentAllocations: DocumentPaymentAllocation[]
   documentAdjustments: DocumentAdjustment[]
   services: Service[]
+  appointmentReminders: AppointmentReminder[]
+  reminderSettings: ReminderSettings
 }
 
 type DemoStore = DemoState & {
   updateProfile: (changes: Partial<ProfileSettings>) => void
   updateWorkspace: (changes: Partial<WorkspaceSettings>) => void
   addAccount: (record: NewAccountRecord) => Account
-  updateAccount: (id: number, changes: Partial<Account>) => void
+  updateAccount: (id: number, changes: Partial<Account>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => void
   addOrganization: (record: NewOrganizationRecord) => Organization
   updateOrganization: (id: number, changes: Partial<Organization>) => void
   archiveOrganization: (id: number) => void
@@ -88,8 +112,12 @@ type DemoStore = DemoState & {
   updateOpportunity: (id: number, changes: Partial<Opportunity>) => void
   addEngagement: (record: Omit<Engagement, 'id'>) => Engagement
   updateEngagement: (id: number, changes: Partial<Engagement>) => void
-  addPrestation: (record: Omit<Prestation, 'id'>) => Prestation
-  updatePrestation: (id: number, changes: Partial<Prestation>) => void
+  addPrestation: (record: Omit<Prestation, 'id'>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => Prestation
+  updatePrestation: (id: number, changes: Partial<Prestation>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => void
+  updateReminderSettings: (changes: Partial<ReminderSettings>, reminderContext: Omit<ReminderSyncContext, 'settings'>) => void
+  cancelAppointmentReminders: (prestationId: number) => void
+  markReminderSent: (id: number) => void
+  markReminderFailed: (id: number) => void
   addActivity: (record: Omit<ActivityRecord, 'id'>) => ActivityRecord
   toggleActivity: (id: number) => void
   addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>, documentAllocations?: Array<{ documentId: number; amount: number }>) => Payment
@@ -129,6 +157,8 @@ const seedState: DemoState = {
   documentPaymentAllocations: seedDocumentPaymentAllocations,
   documentAdjustments: seedDocumentAdjustments,
   services: seedServices,
+  appointmentReminders: seedAppointmentReminders,
+  reminderSettings: defaultReminderSettings,
 }
 
 function migrateDemoState(saved: DemoState): DemoState {
@@ -159,6 +189,8 @@ function migrateDemoState(saved: DemoState): DemoState {
     documents: saved.documents ?? seedDocuments,
     documentPaymentAllocations: saved.documentPaymentAllocations ?? seedDocumentPaymentAllocations,
     documentAdjustments: saved.documentAdjustments ?? seedDocumentAdjustments,
+    appointmentReminders: saved.appointmentReminders ?? seedAppointmentReminders,
+    reminderSettings: saved.reminderSettings ?? defaultReminderSettings,
   }
 }
 
@@ -228,15 +260,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (result.created) setState(current => ({ ...current, accounts: [result.account, ...current.accounts] }))
       return result.account
     },
-    updateAccount(id, changes) {
+    updateAccount(id, changes, reminderContext) {
       setState(current => {
         const normalizedChanges = Object.prototype.hasOwnProperty.call(changes, 'email') ? { ...changes, email: normalizeEmail(changes.email || '') || undefined } : changes
         if (normalizedChanges.email && findAccountByEmail(current.accounts, normalizedChanges.email, id)) return current
         const previous = current.accounts.find(record => record.id === id)
         const nextName = normalizedChanges.name?.trim()
+        const nextAccounts = current.accounts.map(record => record.id === id ? { ...record, ...normalizedChanges } : record)
+        let reminders = current.appointmentReminders
+        if (reminderContext && Object.prototype.hasOwnProperty.call(normalizedChanges, 'email')) {
+          const nextAccount = nextAccounts.find(record => record.id === id)
+          current.prestations.filter(record => record.accountId === id).forEach(prestation => {
+            reminders = reconcileAppointmentReminders(reminders, prestation, nextAccount, { ...reminderContext, settings: current.reminderSettings })
+          })
+        }
         return {
           ...current,
-          accounts: current.accounts.map(record => record.id === id ? { ...record, ...normalizedChanges } : record),
+          accounts: nextAccounts,
+          appointmentReminders: reminders,
           // Relations remain ID-based; these names are only synchronized display snapshots
           // for legacy list rows that have not yet moved to repository joins.
           opportunities: current.opportunities.map(record => record.accountId === id && nextName ? { ...record, account: nextName, contact: record.contact === previous?.name ? nextName : record.contact } : record),
@@ -286,28 +327,59 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     updateEngagement(id, changes) {
       setState(current => ({ ...current, engagements: current.engagements.map(record => record.id === id ? { ...record, ...changes, updatedAt: new Date().toISOString() } : record) }))
     },
-    addPrestation(record) {
+    addPrestation(record, reminderContext) {
       const savedAt = new Date().toISOString()
       const created: Prestation = { ...record, id: nextId(state.prestations), createdAt: record.createdAt ?? savedAt }
-      setState(current => ({
-        ...current,
-        prestations: [created, ...current.prestations],
-        activities: syncFollowUpActivity(current.activities, created, created.followUpNote || '', savedAt),
-      }))
+      setState(current => {
+        const account = current.accounts.find(item => item.id === created.accountId)
+        const reminders = reminderContext
+          ? reconcileAppointmentReminders(current.appointmentReminders, created, account, { ...reminderContext, settings: current.reminderSettings })
+          : current.appointmentReminders
+        return {
+          ...current,
+          prestations: [created, ...current.prestations],
+          activities: syncFollowUpActivity(current.activities, created, created.followUpNote || '', savedAt),
+          appointmentReminders: reminders,
+        }
+      })
       return created
     },
-    updatePrestation(id, changes) {
+    updatePrestation(id, changes, reminderContext) {
       setState(current => {
         const existing = current.prestations.find(record => record.id === id)
         if (!existing) return current
         const updated = { ...existing, ...changes }
         const shouldSyncFollowUp = Object.prototype.hasOwnProperty.call(changes, 'followUpNote')
+        const account = current.accounts.find(item => item.id === updated.accountId)
+        const reminders = reminderContext
+          ? reconcileAppointmentReminders(current.appointmentReminders, updated, account, { ...reminderContext, settings: current.reminderSettings })
+          : current.appointmentReminders
         return {
           ...current,
           prestations: current.prestations.map(record => record.id === id ? updated : record),
           activities: shouldSyncFollowUp ? syncFollowUpActivity(current.activities, updated, updated.followUpNote || '', new Date().toISOString()) : current.activities,
+          appointmentReminders: reminders,
         }
       })
+    },
+    updateReminderSettings(changes, reminderContext) {
+      setState(current => {
+        const settings = { ...current.reminderSettings, ...changes }
+        let reminders = current.appointmentReminders
+        current.prestations.forEach(prestation => {
+          reminders = reconcileAppointmentReminders(reminders, prestation, current.accounts.find(account => account.id === prestation.accountId), { ...reminderContext, settings })
+        })
+        return { ...current, reminderSettings: settings, appointmentReminders: reminders }
+      })
+    },
+    cancelAppointmentReminders(prestationId) {
+      setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.prestationId === prestationId && record.status === 'scheduled' ? { ...record, status: 'cancelled', errorMessage: 'Cancelado manualmente', updatedAt: new Date().toISOString() } : record) }))
+    },
+    markReminderSent(id) {
+      setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.id === id ? { ...record, status: 'sent', sentAt: new Date().toISOString(), providerMessageId: `mock_${record.id}_${Date.now()}`, errorMessage: undefined, updatedAt: new Date().toISOString() } : record) }))
+    },
+    markReminderFailed(id) {
+      setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.id === id ? { ...record, status: 'failed', errorMessage: 'Fallo simulado del proveedor de desarrollo', updatedAt: new Date().toISOString() } : record) }))
     },
     addActivity(record) {
       const created: ActivityRecord = { ...record, id: nextId(state.activities), createdAt: record.createdAt ?? new Date().toISOString() }

@@ -201,3 +201,33 @@ Las tablas `payment_requests` y `payment_request_items` usan claves foráneas co
 Las boletas permanecen preparadas en `documents`, pero no forman parte de la navegación principal. En la solicitud se reservan las acciones inactivas “Generar link de pago” y “Generar boleta” para iteraciones futuras.
 
 Los pagos recibidos se originan exclusivamente desde una solicitud. Una vez registrados son inmutables: cualquier corrección se realiza mediante una anulación auditada (`voided_at`, `voided_by`, `void_reason`). El pago y sus asignaciones permanecen visibles, pero dejan de contar como ingreso y el saldo de la solicitud se recalcula. Las asignaciones entre pagos y boletas quedan fuera de la interfaz hasta definir el flujo tributario definitivo.
+
+## Recordatorios automáticos de citas
+
+Los recordatorios por email son una capacidad **Plus** para prestaciones que representan una cita con asistencia. La configuración vertical determina esta capacidad: Salud y Profesor la habilitan; Diseñador e Influencer no. Otras actividades permanece deshabilitada hasta que su tipo de prestación declare explícitamente que requiere asistencia.
+
+El modo demo utiliza una única fuente de entitlement en `src/entitlements.ts`. Por defecto concede `email_reminders` como `demo_plus` para probar el flujo completo, manteniendo el badge Plus. Configuración → Recordatorios permite alternar la vista de prueba entre Plus demo y Free; Free descubre la función y puede navegar a Facturación, pero no programa notificaciones.
+
+La persistencia temporal vive en DemoStore y se accede exclusivamente mediante `reminderRepository`:
+
+```text
+Prestación
+    ↓
+Reminder Repository
+    ↓
+appointment_reminders (DemoStore)
+    ↓
+Scheduler futuro
+    ↓
+EmailProvider
+    ├── MockEmailProvider (actual)
+    └── ResendEmailProvider (futuro, server-side)
+```
+
+Cada registro conserva `workspaceId`, `prestationId`, `accountId`, destinatario, fecha programada, slot primario/secundario, anticipación, estado, proveedor, identificador del mensaje, error y timestamps. Los estados son `scheduled`, `sent`, `cancelled` y `failed`. El repository expone programación, reagendamiento, cancelación, consulta por prestación y simulación de envío o fallo.
+
+Al guardar o editar una cita, la reconciliación es idempotente por prestación, slot, destinatario y fecha programada. Un cambio de fecha/hora cancela el recordatorio pendiente anterior y reprograma el nuevo; Cancelada, Completada o No asistió cancela los pendientes. Un cambio de email actualiza los recordatorios todavía no enviados. Los registros enviados se conservan como historial.
+
+El template de email contiene únicamente nombre, tipo de cita, fecha y hora; nunca incluye seguimiento ni información clínica. El remitente futuro será `Nombre profesional vía Hazento <recordatorios@hazento.cl>` y queda preparado `replyTo`.
+
+Para conectar Resend posteriormente se necesitarán `RESEND_API_KEY` y `EMAIL_FROM`, exclusivamente en backend. `RESEND_API_KEY` nunca debe usar prefijo `VITE_` ni llegar al navegador. También falta implementar el scheduler productivo, persistencia Supabase, envío server-side y webhook de Resend para mapear delivered/bounced/failed. La tabla futura `appointment_reminders` deberá usar UUID, FK a workspace/prestation/persona, índices de pendientes por `scheduled_for` y RLS basada en `workspace_members`.
