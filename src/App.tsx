@@ -22,7 +22,7 @@ import { BillingSettings } from './BillingSettings'
 import { PaymentReceivedDetailDialog, PaymentRequestCreateDialog, PaymentRequestDetailDialog, PaymentRequestsList } from './PaymentRequests'
 import { demoDateInput, demoMonthRange, demoToday } from './demoTime'
 import { normalizeSearchText } from './searchText'
-import { AppointmentReminderPanel, MissingReminderEmailNotice, ReminderSettingsPanel } from './AppointmentReminders'
+import { MissingReminderEmailNotice, ReminderSettingsPanel } from './AppointmentReminders'
 import { isValidReminderEmail } from './reminders'
 
 type Page = 'dashboard' | 'accounts' | 'account' | 'opportunities' | 'opportunity' | 'agenda' | 'work' | 'engagement' | 'prestations' | 'activities' | 'payments' | 'services' | 'settings'
@@ -197,7 +197,6 @@ function PrestationDetailModal({ record, labels, onClose }: { record: EditablePr
       {labels.prestation === 'Contenido' && <section className="prestation-description"><span className="section-kicker">Descripción</span><p>{record.description || 'Sin descripción registrada'}</p></section>}
       {labels.supportsFollowUp && <section className="followup-detail"><span className="section-kicker">Seguimiento</span><p>{record.followUpNote || 'Sin seguimiento registrado'}</p></section>}
       {paymentRequests.length > 0 && <section className="prestation-description"><span className="section-kicker">Solicitud de pago</span><p>Solicitado {formatMoney(requestTotals.requested)} · Pagado {formatMoney(requestTotals.paid)} · Saldo {formatMoney(requestTotals.outstanding)}</p><StatusBadge>{paymentRequests[0].status}</StatusBadge></section>}
-      <AppointmentReminderPanel prestation={record} labels={labels}/>
       <div className="status-actions"><button onClick={() => repositories.updatePrestation(record.id, { status: 'Completada' })}><Check size={16}/>Completar</button>{record.status !== 'Programada' && <button onClick={() => repositories.updatePrestation(record.id, { status: 'Programada' })}><Clock3 size={16}/>Volver a programada</button>}<button onClick={() => repositories.updatePrestation(record.id, { status: 'No asistió' })}>No asistió</button><button onClick={() => repositories.updatePrestation(record.id, { status: 'Cancelada' })}>Cancelar</button></div>
       <footer className="modal-actions"><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar {labels.prestation.toLowerCase()}</button><button className="secondary-btn" onClick={() => setRequestingPayment(true)}><CircleDollarSign size={15}/>Generar solicitud de pago</button><button className="primary-btn" onClick={onClose}>Listo</button></footer>
     </>}
