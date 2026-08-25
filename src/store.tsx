@@ -59,7 +59,7 @@ export type DocumentPaymentAllocation = DocumentPaymentAllocationData
 export type DocumentAdjustment = DocumentAdjustmentData
 export type Service = (typeof seedServices)[number]
 export type ProfileSettings = { firstName: string; lastName: string; email: string; phone: string }
-export type WorkspaceSettings = { name: string; country: string; currency: string; timezone: string }
+export type WorkspaceSettings = { name: string; address: string; country: string; currency: string; timezone: string }
 
 const seedAppointmentReminders: AppointmentReminder[] = [{
   id: 1,
@@ -140,7 +140,7 @@ const STORAGE_KEY = 'hazento-demo-v4'
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   profile: { firstName: 'Francisca', lastName: 'Medina', email: 'francisca@hazento.cl', phone: '+56 9 1234 5678' },
-  workspace: { name: 'Consulta Demo', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
+  workspace: { name: 'Consulta Demo', address: 'Av. Providencia 1234, Santiago', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
   accounts: seedAccounts,
   organizations: seedOrganizations,
   contacts: seedContacts,
@@ -170,7 +170,7 @@ function migrateDemoState(saved: DemoState): DemoState {
   return {
     ...saved,
     profile: saved.profile ?? seedState.profile,
-    workspace: saved.workspace ?? seedState.workspace,
+    workspace: { ...seedState.workspace, ...saved.workspace },
     accounts,
     organizations: saved.organizations ?? seedOrganizations,
     contacts: saved.contacts ?? seedContacts,

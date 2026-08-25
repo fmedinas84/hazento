@@ -170,17 +170,15 @@ export function reconcileAppointmentReminders(
   return nextRecords
 }
 
-export function appointmentEmailTemplate({ vertical, professionalName, recipientName, prestation, appointmentDate, recipientEmail, replyTo }: {
-  vertical: Vertical
+export function appointmentEmailTemplate({ professionalName, recipientName, prestation, appointmentDate, address, recipientEmail, replyTo }: {
   professionalName: string
   recipientName: string
   prestation: string
   appointmentDate: Date
+  address: string
   recipientEmail: string
   replyTo?: string
 }): EmailMessage {
-  const isClass = vertical === 'sessions'
-  const noun = isClass ? 'clase' : 'cita'
   const formattedDate = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Santiago' }).format(appointmentDate)
   const formattedTime = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Santiago' }).format(appointmentDate)
   return {
@@ -188,7 +186,7 @@ export function appointmentEmailTemplate({ vertical, professionalName, recipient
     fromName: `${professionalName} vía Hazento`,
     fromEmail: 'recordatorios@hazento.cl',
     replyTo,
-    subject: `Recordatorio de tu ${noun} con ${professionalName}`,
-    text: `Hola ${recipientName},\n\nTe recordamos que tienes ${isClass ? 'una clase' : `una ${prestation.toLowerCase()}`} programada:\n\n${formattedDate}\n${formattedTime}\n\nSi necesitas realizar algún cambio, contacta directamente a ${professionalName}.\n\nEnviado mediante Hazento`,
+    subject: `Recordatorio de tu ${prestation.toLowerCase()} con ${professionalName}`,
+    text: `Hola ${recipientName},\n\nTe recordamos que tienes una ${prestation.toLowerCase()} programada:\n\nFecha: ${formattedDate}\nHora: ${formattedTime}\nDirección: ${address}\n\nSi necesitas realizar algún cambio, contacta directamente a ${professionalName}.\n\nEnviado mediante Hazento`,
   }
 }

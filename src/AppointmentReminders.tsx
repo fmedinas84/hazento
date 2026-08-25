@@ -3,6 +3,7 @@ import { canUseFeature, entitlementLabel } from './entitlements'
 import { useRepositories } from './repositories'
 import {
   isValidReminderEmail,
+  appointmentEmailTemplate,
   parseAppointmentDate,
   reminderEligibility,
   reminderLeadOptions,
@@ -50,6 +51,16 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
   const settings = repositories.reminderSettings
   const entitled = canUseFeature('email_reminders', { mode: settings.entitlementMode })
   const update = repositories.reminderRepository.updateSettings
+  const professionalName = `${repositories.profile.firstName} ${repositories.profile.lastName}`.trim() || 'Tu profesional'
+  const previewMessage = appointmentEmailTemplate({
+    professionalName,
+    recipientName: labels.prestation === 'Clase' ? 'Tomás' : 'María',
+    prestation: labels.prestation,
+    appointmentDate: new Date('2026-08-26T20:00:00.000Z'),
+    address: repositories.workspace.address || '[Dirección configurada en Negocio]',
+    recipientEmail: 'cliente@ejemplo.cl',
+    replyTo: repositories.profile.email,
+  })
 
   if (!labels.supportsAppointmentReminders) return <div className="reminder-settings">
     <div className="reminder-settings-heading"><span className="section-kicker">Recordatorios</span><h2>Recordatorios de citas</h2><p>Esta profesión usa {labels.prestations.toLowerCase()} sin asistencia, por lo que no programa recordatorios de citas.</p></div>
@@ -64,6 +75,11 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
       <label className="setting-switch secondary-reminder"><input type="checkbox" checked={settings.secondaryEnabled} onChange={event => update({ secondaryEnabled: event.target.checked })}/><span><b>Segundo recordatorio</b><small>Opcional</small></span></label>
       {settings.secondaryEnabled && <div className="reminder-config-row"><label><span>Enviar</span><select value={settings.secondaryLeadHours} onChange={event => update({ secondaryLeadHours: Number(event.target.value) })}>{reminderLeadOptions.filter(hours => hours !== settings.primaryLeadHours).map(hours => <option key={hours} value={hours}>{leadLabel(hours)}</option>)}</select></label></div>}
     </section>}
+    <section className="reminder-email-preview" aria-labelledby="reminder-email-preview-title">
+      <div className="reminder-email-preview-heading"><div><span className="section-kicker">Vista previa</span><h3 id="reminder-email-preview-title">Email que recibirá tu cliente</h3><p>Atenciones y clases utilizan esta misma plantilla.</p></div><Mail size={20}/></div>
+      <div className="reminder-template-variables" aria-label="Variables de la plantilla"><span>Nombre</span><span>Fecha</span><span>Hora</span><span>Dirección</span></div>
+      <div className="reminder-email-frame"><div><small>Asunto</small><strong>{previewMessage.subject}</strong></div><pre>{previewMessage.text}</pre></div>
+    </section>
     <section className="reminder-demo-control"><div><RefreshCw size={16}/><span><b>Vista de prueba</b><small>Permite validar Free y Plus sin depender todavía de Billing/Auth.</small></span></div><div className="tabs compact"><button type="button" className={settings.entitlementMode === 'demo_plus' ? 'active' : ''} onClick={() => update({ entitlementMode: 'demo_plus' })}>Plus demo</button><button type="button" className={settings.entitlementMode === 'free' ? 'active' : ''} onClick={() => update({ entitlementMode: 'free' })}>Free</button></div></section>
   </div>
 }
