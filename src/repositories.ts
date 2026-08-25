@@ -3,6 +3,8 @@ import { findAccountByEmail } from './accountEmail'
 import { findOrganizationByName } from './organizationName'
 import { useDemoStore } from './store'
 import { documentSummary, paymentAvailable } from './documentPayments'
+import type { Vertical } from './data'
+import { scenarioActivities, scenarioEngagements, scenarioOpportunities, scenarioPrestations } from './demoScenario'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
 export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value)).toLocaleString('es-CL')}`
@@ -16,6 +18,7 @@ export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value))
  */
 export function useRepositories() {
   const store = useDemoStore()
+  const vertical = ((localStorage.getItem('hazento-vertical') as Vertical) || 'health')
 
   return useMemo(() => {
     const paidPaymentIds = new Set(store.payments.filter(payment => payment.status === 'Pagado').map(payment => payment.id))
@@ -36,7 +39,11 @@ export function useRepositories() {
       return allocated >= total ? 'Pagado' : 'Parcial'
     }
 
-    const prestations = store.prestations.map(prestation => ({
+    const scenarioPrestationRecords = scenarioPrestations(store.prestations, vertical)
+    const opportunityRecords = scenarioOpportunities(store.opportunities, vertical)
+    const engagementRecords = scenarioEngagements(store.engagements, vertical)
+    const activityRecords = scenarioActivities(store.activities, vertical)
+    const prestations = scenarioPrestationRecords.map(prestation => ({
       ...prestation,
       payment: statusFor(prestation.id),
     }))
@@ -73,8 +80,8 @@ export function useRepositories() {
       findByName: (name: string) => findOrganizationByName(store.organizations, name),
     }
     const contacts = { records: store.contacts, create: store.addContact }
-    const opportunities = { records: store.opportunities, create: store.addOpportunity, update: store.updateOpportunity }
-    const engagements = { records: store.engagements, create: store.addEngagement, update: store.updateEngagement }
+    const opportunities = { records: opportunityRecords, create: store.addOpportunity, update: store.updateOpportunity }
+    const engagements = { records: engagementRecords, create: store.addEngagement, update: store.updateEngagement }
     const prestationsRepository = {
       records: prestations,
       create: store.addPrestation,
@@ -84,7 +91,7 @@ export function useRepositories() {
       getOutstandingAmountForPrestation: balanceFor,
       statusFor,
     }
-    const activities = { records: store.activities, create: store.addActivity, toggle: store.toggleActivity }
+    const activities = { records: activityRecords, create: store.addActivity, toggle: store.toggleActivity }
     const payments = {
       records: store.payments,
       allocations: store.paymentAllocations,
@@ -109,7 +116,12 @@ export function useRepositories() {
         const paid = store.paymentRequestAllocations.filter(item => item.paymentRequestId === requestId)
           .filter(item => store.payments.some(payment => payment.id === item.paymentId && payment.status === 'Pagado'))
           .reduce((sum, item) => sum + item.amount, 0)
-        return { requested: request.amount, paid, waived: request.waivedAmount, outstanding: Math.max(0, request.amount - paid - request.waivedAmount) }
+        const rawOutstanding = Math.max(0, request.amount - paid - request.waivedAmount)
+        const transferredAmount = request.status === 'Cerrada con saldo trasladado'
+          ? store.paymentRequests.filter(item => item.parentRequestId === request.id).reduce((sum, item) => sum + item.amount, 0)
+          : 0
+        const collectibleOutstanding = request.status === 'Pendiente' ? rawOutstanding : 0
+        return { requested: request.amount, paid, waived: request.waivedAmount, forgivenAmount: request.waivedAmount, rawOutstanding, collectibleOutstanding, transferredAmount, outstanding: collectibleOutstanding }
       },
       forPrestation: (prestationId: number) => store.paymentRequests.filter(request => request.originPrestationId === prestationId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.prestationId === prestationId)),
       forEngagement: (engagementId: number) => store.paymentRequests.filter(request => request.originEngagementId === engagementId || store.paymentRequestItems.some(item => item.paymentRequestId === request.id && item.engagementId === engagementId)),
@@ -146,10 +158,10 @@ export function useRepositories() {
       accounts: store.accounts,
       organizations: organizations.records,
       contacts: store.contacts,
-      opportunities: store.opportunities,
-      engagements: store.engagements,
+      opportunities: opportunityRecords,
+      engagements: engagementRecords,
       prestations,
-      activities: store.activities,
+      activities: activityRecords,
       payments: store.payments,
       paymentAllocations: store.paymentAllocations,
       paymentRequests: store.paymentRequests,
@@ -194,5 +206,5 @@ export function useRepositories() {
       documentRepository: documents,
       serviceRepository: services,
     }
-  }, [store])
+  }, [store, vertical])
 }
