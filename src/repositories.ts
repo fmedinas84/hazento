@@ -3,8 +3,9 @@ import { findAccountByEmail } from './accountEmail'
 import { findOrganizationByName } from './organizationName'
 import { useDemoStore } from './store'
 import { documentSummary, paymentAvailable } from './documentPayments'
-import type { Vertical } from './data'
+import { verticalLabels, type Vertical } from './data'
 import { scenarioActivities, scenarioEngagements, scenarioOpportunities, scenarioPrestations } from './demoScenario'
+import { DEMO_NOW } from './demoTime'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
 export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value)).toLocaleString('es-CL')}`
@@ -21,6 +22,11 @@ export function useRepositories() {
   const vertical = ((localStorage.getItem('hazento-vertical') as Vertical) || 'health')
 
   return useMemo(() => {
+    const labels = verticalLabels[vertical]
+    const reminderContext = { supportsAppointmentReminders: labels.supportsAppointmentReminders, scheduledStatus: labels.scheduledStatus, now: DEMO_NOW }
+    const addPrestation = (record: Parameters<typeof store.addPrestation>[0]) => store.addPrestation(record, reminderContext)
+    const updatePrestation = (id: number, changes: Parameters<typeof store.updatePrestation>[1]) => store.updatePrestation(id, changes, reminderContext)
+    const updateAccount = (id: number, changes: Parameters<typeof store.updateAccount>[1]) => store.updateAccount(id, changes, reminderContext)
     const paidPaymentIds = new Set(store.payments.filter(payment => payment.status === 'Pagado').map(payment => payment.id))
     const allocatedFor = (prestationId: number) => store.paymentAllocations
       .filter(allocation => allocation.prestationId === prestationId && paidPaymentIds.has(allocation.paymentId))
@@ -61,9 +67,9 @@ export function useRepositories() {
     const accounts = {
       records: store.accounts,
       create: store.addAccount,
-      update: store.updateAccount,
+      update: updateAccount,
       findByEmail: (email: string) => findAccountByEmail(store.accounts, email),
-      archive: (id: number) => store.updateAccount(id, { status: 'Inactivo', next: '—' }),
+      archive: (id: number) => updateAccount(id, { status: 'Inactivo', next: '—' }),
       getPrestations: getAccountPrestations,
       getPayments: getAccountPayments,
       getWorkedAmount: getAccountWorkedAmount,
@@ -84,8 +90,8 @@ export function useRepositories() {
     const engagements = { records: engagementRecords, create: store.addEngagement, update: store.updateEngagement }
     const prestationsRepository = {
       records: prestations,
-      create: store.addPrestation,
-      update: store.updatePrestation,
+      create: addPrestation,
+      update: updatePrestation,
       allocatedFor,
       balanceFor,
       getOutstandingAmountForPrestation: balanceFor,
@@ -151,6 +157,17 @@ export function useRepositories() {
       addAdjustment: store.addDocumentAdjustment,
     }
     const services = { records: store.services, create: store.addService, update: store.updateService, toggle: store.toggleService }
+    const reminders = {
+      records: store.appointmentReminders,
+      settings: store.reminderSettings,
+      schedule: (prestationId: number) => updatePrestation(prestationId, {}),
+      reschedule: (prestationId: number) => updatePrestation(prestationId, {}),
+      cancel: store.cancelAppointmentReminders,
+      getByPrestation: (prestationId: number) => store.appointmentReminders.filter(record => record.prestationId === prestationId),
+      markSent: store.markReminderSent,
+      markFailed: store.markReminderFailed,
+      updateSettings: (changes: Parameters<typeof store.updateReminderSettings>[0]) => store.updateReminderSettings(changes, reminderContext),
+    }
 
     return {
       profile: store.profile,
@@ -171,17 +188,19 @@ export function useRepositories() {
       documentPaymentAllocations: store.documentPaymentAllocations,
       documentAdjustments: store.documentAdjustments,
       services: store.services,
+      appointmentReminders: store.appointmentReminders,
+      reminderSettings: store.reminderSettings,
       addAccount: store.addAccount,
       addOrganization: store.addOrganization,
       updateOrganization: store.updateOrganization,
-      updateAccount: store.updateAccount,
+      updateAccount,
       addContact: store.addContact,
       addOpportunity: store.addOpportunity,
       updateOpportunity: store.updateOpportunity,
       addEngagement: store.addEngagement,
       updateEngagement: store.updateEngagement,
-      addPrestation: store.addPrestation,
-      updatePrestation: store.updatePrestation,
+      addPrestation,
+      updatePrestation,
       addActivity: store.addActivity,
       toggleActivity: store.toggleActivity,
       addPayment: store.addPayment,
@@ -205,6 +224,7 @@ export function useRepositories() {
       voidPayment,
       documentRepository: documents,
       serviceRepository: services,
+      reminderRepository: reminders,
     }
   }, [store, vertical])
 }
