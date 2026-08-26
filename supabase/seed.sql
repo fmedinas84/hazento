@@ -14,32 +14,38 @@ on conflict (id) do update set
   currency_code = excluded.currency_code,
   timezone = excluded.timezone;
 
-insert into public.accounts
-  (id, workspace_id, account_type, status, display_name, legal_name, tax_id, email, phone, city, commune, notes)
+insert into public.organizations
+  (id, workspace_id, name, legal_name, tax_id, email, phone, city, commune, notes)
 values
-  ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'María Pérez', 'María Pérez', '17.284.391-2', 'maria.perez@example.test', '+56 9 4421 8870', 'Santiago', 'Providencia', '[DEMO] Paciente con tratamiento activo y una atención pendiente.'),
-  ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Juan Soto', 'Juan Soto', '15.931.240-8', 'juan.soto@example.test', '+56 9 6732 2210', 'Santiago', 'Ñuñoa', '[DEMO] Paciente con pagos parciales.'),
-  ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Carolina Díaz', 'Carolina Díaz', '18.402.116-5', 'carolina.diaz@example.test', '+56 9 7814 9022', 'Santiago', 'Las Condes', '[DEMO] Evaluación inicial programada.'),
-  ('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Pedro González', 'Pedro González', '14.770.803-1', 'pedro.gonzalez@example.test', '+56 9 3380 1244', 'Santiago', 'Macul', '[DEMO] Plan activo con prepago.'),
-  ('20000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', 'person', 'prospect', 'Daniela Silva', 'Daniela Silva', '19.730.842-9', 'daniela.silva@example.test', '+56 9 2284 6115', 'Santiago', 'La Reina', '[DEMO] Prospecto con oportunidad abierta.'),
-  ('20000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000001', 'person', 'inactive', 'Felipe Vargas', 'Felipe Vargas', '16.982.177-4', 'felipe.vargas@example.test', '+56 9 3120 4566', 'Santiago', 'San Miguel', '[DEMO] Paciente inactivo con atención no asistida.')
+  ('11000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Acme', 'Acme SpA', '76.432.100-8', 'contacto@acme.example.test', '+56 2 2345 6789', 'Santiago', 'Providencia', '[DEMO] Empresa representada por Juan Soto'),
+  ('11000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Nike', null, null, null, null, 'Santiago', 'Las Condes', '[DEMO] Empresa representada por Carolina Díaz')
 on conflict (id) do update set
-  status = excluded.status,
-  display_name = excluded.display_name,
+  name = excluded.name,
+  legal_name = excluded.legal_name,
+  tax_id = excluded.tax_id,
   email = excluded.email,
   phone = excluded.phone,
   notes = excluded.notes;
 
-insert into public.contacts
-  (id, workspace_id, account_id, first_name, last_name, email, phone, is_primary, notes)
+insert into public.accounts
+  (id, workspace_id, account_type, status, first_name, last_name, display_name, organization_id, role, legal_name, tax_id, email, phone, city, commune, notes)
 values
-  ('21000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'María', 'Pérez', 'maria.perez@example.test', '+56 9 4421 8870', true, '[DEMO] Contacto principal'),
-  ('21000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', 'Juan', 'Soto', 'juan.soto@example.test', '+56 9 6732 2210', true, '[DEMO] Contacto principal'),
-  ('21000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', 'Daniela', 'Silva', 'daniela.silva@example.test', '+56 9 2284 6115', true, '[DEMO] Contacto principal')
+  ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'María', 'Pérez', 'María Pérez', null, null, 'María Pérez', '17.284.391-2', 'maria.perez@example.test', '+56 9 4421 8870', 'Santiago', 'Providencia', '[DEMO] Paciente con tratamiento activo y una atención pendiente.'),
+  ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Juan', 'Soto', 'Juan Soto', '11000000-0000-4000-8000-000000000001', 'Gerente Comercial', 'Juan Soto', '15.931.240-8', 'juan.soto@example.test', '+56 9 6732 2210', 'Santiago', 'Ñuñoa', '[DEMO] Persona que representa a Acme y mantiene pagos parciales.'),
+  ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Carolina', 'Díaz', 'Carolina Díaz', '11000000-0000-4000-8000-000000000002', 'Brand Manager', 'Carolina Díaz', '18.402.116-5', 'carolina.diaz@example.test', '+56 9 7814 9022', 'Santiago', 'Las Condes', '[DEMO] Persona que representa a Nike.'),
+  ('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'person', 'active', 'Pedro', 'González', 'Pedro González', null, null, 'Pedro González', '14.770.803-1', 'pedro.gonzalez@example.test', '+56 9 3380 1244', 'Santiago', 'Macul', '[DEMO] Plan activo con prepago.'),
+  ('20000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', 'person', 'prospect', 'Daniela', 'Silva', 'Daniela Silva', null, null, 'Daniela Silva', '19.730.842-9', 'daniela.silva@example.test', '+56 9 2284 6115', 'Santiago', 'La Reina', '[DEMO] Prospecto con oportunidad abierta.'),
+  ('20000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000001', 'person', 'inactive', 'Felipe', 'Vargas', 'Felipe Vargas', null, null, 'Felipe Vargas', '16.982.177-4', 'felipe.vargas@example.test', '+56 9 3120 4566', 'Santiago', 'San Miguel', '[DEMO] Paciente inactivo con atención no asistida.')
 on conflict (id) do update set
+  status = excluded.status,
+  first_name = excluded.first_name,
+  last_name = excluded.last_name,
+  display_name = excluded.display_name,
+  organization_id = excluded.organization_id,
+  role = excluded.role,
   email = excluded.email,
   phone = excluded.phone,
-  is_primary = excluded.is_primary;
+  notes = excluded.notes;
 
 insert into public.services
   (id, workspace_id, name, description, default_price, default_duration_minutes, active)
@@ -58,9 +64,9 @@ on conflict (id) do update set
 insert into public.opportunities
   (id, workspace_id, account_id, primary_contact_id, name, stage, status, estimated_amount, probability, expected_close_date, won_at, lost_at, lost_reason, notes)
 values
-  ('40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000001', 'Plan de 8 sesiones', 'Ganada', 'won', 280000, 100, '2026-06-01', '2026-06-01 14:00:00-04', null, null, '[DEMO] Oportunidad convertida en tratamiento.'),
-  ('40000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', '21000000-0000-4000-8000-000000000003', 'Evaluación y plan inicial', 'Nuevo', 'open', 180000, 25, '2026-08-24', null, null, null, '[DEMO] Requiere llamada de seguimiento.'),
-  ('40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', '21000000-0000-4000-8000-000000000002', 'Plan de continuidad', 'Contactado', 'open', 175000, 45, '2026-08-28', null, null, null, '[DEMO] Esperando confirmación.'),
+  ('40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', null, 'Plan de 8 sesiones', 'Ganada', 'won', 280000, 100, '2026-06-01', '2026-06-01 14:00:00-04', null, null, '[DEMO] Oportunidad convertida en tratamiento.'),
+  ('40000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', null, 'Evaluación y plan inicial', 'Nuevo', 'open', 180000, 25, '2026-08-24', null, null, null, '[DEMO] Requiere llamada de seguimiento.'),
+  ('40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', null, 'Plan de continuidad', 'Contactado', 'open', 175000, 45, '2026-08-28', null, null, null, '[DEMO] Esperando confirmación.'),
   ('40000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', null, 'Plan posterior a evaluación', 'Perdida', 'lost', 150000, 0, '2026-08-10', null, '2026-08-11 11:00:00-04', 'Prioridad postergada', '[DEMO] Ejemplo de oportunidad perdida.'),
   ('40000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', null, 'Renovación plan mensual', 'Negociación', 'open', 140000, 70, '2026-09-05', null, null, null, '[DEMO] Oportunidad en negociación.')
 on conflict (id) do update set
@@ -115,12 +121,22 @@ on conflict (id) do update set
   total_amount = excluded.total_amount,
   notes = excluded.notes;
 
+update public.prestations
+set follow_up_note = case id
+  when '60000000-0000-4000-8000-000000000001' then 'Se mantiene frecuencia semanal.'
+  when '60000000-0000-4000-8000-000000000005' then 'Se acuerda revisar evolución en la próxima sesión.'
+end
+where id in (
+  '60000000-0000-4000-8000-000000000001',
+  '60000000-0000-4000-8000-000000000005'
+);
+
 insert into public.activities
   (id, workspace_id, account_id, contact_id, opportunity_id, engagement_id, prestation_id, activity_type, title, description, scheduled_at, completed_at, status)
 values
   ('70000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', null, null, null, '60000000-0000-4000-8000-000000000008', 'task', 'Confirmar evaluación de Carolina', '[DEMO] Confirmación de asistencia', '2026-08-17 09:30:00-04', null, 'pending'),
-  ('70000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', '21000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000002', null, null, 'call', 'Llamar para coordinar evaluación', '[DEMO] Próximo paso comercial', '2026-08-17 12:00:00-04', null, 'pending'),
-  ('70000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', '21000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000003', null, null, 'email', 'Enviar propuesta de continuidad', '[DEMO] Seguimiento de oportunidad', '2026-08-17 16:00:00-04', null, 'pending'),
+  ('70000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000005', null, '40000000-0000-4000-8000-000000000002', null, null, 'call', 'Llamar para coordinar evaluación', '[DEMO] Próximo paso comercial', '2026-08-17 12:00:00-04', null, 'pending'),
+  ('70000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', null, '40000000-0000-4000-8000-000000000003', null, null, 'email', 'Enviar propuesta de continuidad', '[DEMO] Seguimiento de oportunidad', '2026-08-17 16:00:00-04', null, 'pending'),
   ('70000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', null, null, '50000000-0000-4000-8000-000000000001', null, 'milestone', 'Revisar avance del tratamiento', '[DEMO] Revisión del plan', '2026-08-18 10:00:00-04', null, 'pending'),
   ('70000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', null, '40000000-0000-4000-8000-000000000005', null, null, 'call', 'Seguimiento renovación', '[DEMO] Actividad vencida', '2026-08-15 11:00:00-04', null, 'pending'),
   ('70000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', null, null, '50000000-0000-4000-8000-000000000001', null, 'note', 'Objetivos del plan acordados', '[DEMO] Nota operacional, no clínica', null, '2026-06-03 13:00:00-04', 'completed'),
@@ -133,6 +149,28 @@ on conflict (id) do update set
   scheduled_at = excluded.scheduled_at,
   completed_at = excluded.completed_at,
   status = excluded.status;
+
+insert into public.activities
+  (id, workspace_id, account_id, engagement_id, prestation_id, activity_type, source, title, description, completed_at, status)
+values
+  ('71000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000001', 'note', 'prestation_follow_up', 'Seguimiento', 'Se mantiene frecuencia semanal.', '2026-08-03 10:05:00-04', 'completed'),
+  ('71000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000003', '60000000-0000-4000-8000-000000000005', 'note', 'prestation_follow_up', 'Seguimiento', 'Se acuerda revisar evolución en la próxima sesión.', '2026-08-07 11:50:00-04', 'completed')
+on conflict (id) do update set
+  description = excluded.description,
+  completed_at = excluded.completed_at,
+  source = excluded.source,
+  status = excluded.status;
+
+insert into public.appointment_reminders
+  (id, workspace_id, prestation_id, account_id, recipient_email, scheduled_for, status, slot, lead_hours, provider)
+values
+  ('72000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000009', '20000000-0000-4000-8000-000000000003', 'carolina.diaz@example.test', '2026-08-24 10:30:00-04', 'scheduled', 'primary', 24, 'mock')
+on conflict (id) do update set
+  recipient_email = excluded.recipient_email,
+  scheduled_for = excluded.scheduled_for,
+  status = excluded.status,
+  lead_hours = excluded.lead_hours,
+  provider = excluded.provider;
 
 insert into public.payments
   (id, workspace_id, account_id, amount, currency_code, payment_date, payment_method, status, reference, notes)

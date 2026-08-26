@@ -1,5 +1,7 @@
 # Hazento
 
+La preparación del modelo PostgreSQL y el plan de transición desde DemoStore están documentados en [docs/supabase-production-readiness.md](docs/supabase-production-readiness.md).
+
 Prototipo funcional del frontend de Hazento para validar navegación, objetos y flujos principales antes de conectar datos de producción.
 
 ## Ejecutar localmente
