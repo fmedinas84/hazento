@@ -70,7 +70,7 @@ Todas las tablas operacionales tienen `workspace_id`. Las tablas nuevas tienen R
 - el cliente anónimo no recibe privilegios;
 - las suscripciones pagadas continúan siendo de lectura para miembros y escritura server-side.
 
-La dependencia circular del primer workspace ya se resuelve con la función transaccional `public.create_workspace`: valida `auth.uid()`, crea el workspace y la membresía owner en la misma operación. En producción se debe conservar el `search_path` cerrado, el grant exclusivamente a `authenticated` y pruebas RLS con dos usuarios/workspaces. No se debe habilitar INSERT libre en `workspaces` ni desactivar RLS.
+La dependencia circular del primer workspace se resuelve con la función transaccional e idempotente `public.bootstrap_user_workspace`: valida `auth.uid()`, crea perfil, workspace y membresía owner. `create_workspace` fue retirado. Se conserva el `search_path` cerrado y el grant exclusivamente a `authenticated`; no se habilita INSERT libre en `workspaces` ni se desactiva RLS.
 
 ## Tablas
 
@@ -126,3 +126,24 @@ Ninguna tabla se elimina. `contacts`, `accounts.account_type = company/brand`, `
 3. Agregar Auth + onboarding transaccional + pruebas RLS multiusuario.
 4. Migrar datos legacy, restringir `accounts` a personas y retirar dependencias de `contacts`.
 5. Habilitar proveedores server-side (Mercado Pago y Resend) después de identidad y tenant confiables.
+
+## Gate de producción — 26 de agosto de 2026
+
+Proyecto productivo confirmado: `qypxfvbhrsepenrrwmqn` (`Hazento Project`). Staging permanece aislado en `nsqwooyjcmsrlbldwcne`.
+
+### Acciones completadas
+
+- Se identificó y eliminó, con autorización explícita, el dataset demo productivo: 1 workspace, 6 personas, 5 oportunidades, 3 engagements, 18 prestaciones, 9 actividades, 12 pagos y sus relaciones. No existían usuarios Auth, perfiles ni membresías reales.
+- Se aplicaron en orden las migraciones versionadas ya validadas en staging: modelo V1, hardening financiero, índices, privilegios, bootstrap, RLS de membresías, retiro de RPC legacy y operaciones atómicas del repository.
+- Security Advisor productivo no reporta errores críticos. Se aceptan tres warnings de RPC `SECURITY DEFINER`: `bootstrap_user_workspace`, `settle_payment_request` y `void_received_payment`. Todos fijan `search_path`, verifican `auth.uid()`, validan membresía y deniegan ejecución a `anon`.
+- Vercel Production tiene `VITE_DATA_SOURCE=supabase`, URL productiva y publishable key productiva. No existe `service_role` en el navegador.
+- Supabase Auth tiene confirmación de email activa, registro anónimo deshabilitado, Site URL y redirect exacto `https://hazento.vercel.app`.
+- El registro de usuarios quedó temporalmente deshabilitado para mantener la beta cerrada.
+
+### Bloqueantes antes del deployment y smoke productivo
+
+1. Custom SMTP está deshabilitado. Debe configurarse un proveedor productivo para confirmación y recuperación antes de habilitar cuentas beta.
+2. La UI actual de Auth todavía debe comprobarse de extremo a extremo con confirmación y recuperación reales.
+3. Después de configurar SMTP: habilitar registro solo durante el alta controlada, crear dos usuarios QA, ejecutar smoke/RLS/pagos, volver a cerrar registro y recién entonces desplegar.
+
+No se ejecutó seed, no se copiaron usuarios QA de staging y no se activaron Mercado Pago ni recordatorios reales.
