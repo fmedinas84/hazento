@@ -220,4 +220,16 @@ El schema sí está listo para desarrollar `SupabaseRepository`; el frontend aú
 
 ## Conclusión
 
-El schema de Hazento V1 está desplegado y validado sobre PostgreSQL real en staging. Estamos listos para comenzar la implementación del adapter `SupabaseRepository`, pero no para activarlo en el frontend ni para producción hasta completar Auth, contexto de workspace y pruebas RLS reales.
+El schema de Hazento V1 está desplegado y validado sobre PostgreSQL real en staging. La rama `feat/auth-workspaces-production` incorporó posteriormente el adapter activo de staging, Auth, resolución de workspace y pruebas RLS con dos sesiones reales. Producción continúa fuera de alcance.
+
+## Validación del repository (26 de agosto de 2026)
+
+Se aplicó únicamente a staging la migración `20260826134523_repository_atomic_operations.sql`, que agrega configuración de recordatorios al workspace, creación atómica de solicitudes con conceptos y sincronización transaccional de seguimientos.
+
+Resultado E2E reproducible:
+
+```json
+{"staging":true,"users":2,"isolated":true,"persisted":true,"partialPayment":20000,"successorBalance":10000}
+```
+
+La UI fue validada con sesión real: login, bootstrap, creación de persona y persistencia después de recargar. El build completo y la migración legacy del modo demo pasan. Los Security Advisors no presentan errores críticos nuevos; permanecen warnings conocidos de RPC privilegiadas intencionales y protección de contraseñas filtradas desactivada en staging.

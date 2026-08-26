@@ -60,7 +60,7 @@ export type DocumentPaymentAllocation = DocumentPaymentAllocationData
 export type DocumentAdjustment = DocumentAdjustmentData
 export type Service = (typeof seedServices)[number]
 export type ProfileSettings = { firstName: string; lastName: string; email: string; phone: string }
-export type WorkspaceSettings = { name: string; address: string; country: string; currency: string; timezone: string }
+export type WorkspaceSettings = { name: string; address: string; country: string; currency: string; timezone: string; vertical?: import('./data').Vertical }
 
 const seedAppointmentReminders: AppointmentReminder[] = [{
   id: '1',
@@ -77,7 +77,7 @@ const seedAppointmentReminders: AppointmentReminder[] = [{
   updatedAt: '2026-08-18T12:00:00.000Z',
 }]
 
-type DemoState = {
+export type DataState = {
   profile: ProfileSettings
   workspace: WorkspaceSettings
   accounts: Account[]
@@ -100,7 +100,7 @@ type DemoState = {
   reminderSettings: ReminderSettings
 }
 
-type DemoStore = DemoState & {
+export type DataStore = DataState & {
   repositoryStatus: 'loading' | 'ready' | 'error'
   repositoryError: string | null
   retryRepository: () => void
@@ -143,7 +143,7 @@ type DemoStore = DemoState & {
 const STORAGE_KEY = 'hazento-demo-v4'
 const DEMO_SCHEMA_VERSION = 5
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
-const seedState: DemoState = {
+const seedState: DataState = {
   profile: { firstName: 'Francisca', lastName: 'Medina', email: 'francisca@hazento.cl', phone: '+56 9 1234 5678' },
   workspace: { name: 'Consulta Demo', address: 'Av. Providencia 1234, Santiago', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
   accounts: seedAccounts,
@@ -166,14 +166,14 @@ const seedState: DemoState = {
   reminderSettings: defaultReminderSettings,
 }
 
-type StoredDemoState = { demoSchemaVersion: number; state: DemoState }
+type StoredDemoState = { demoSchemaVersion: number; state: DataState }
 
 /** One-way, idempotent migration for numeric and numeric-looking legacy IDs. */
-export function migrateLegacyDemoIds(saved: DemoState): DemoState {
+export function migrateLegacyDemoIds(saved: DataState): DataState {
   return migrateLegacyIds(saved)
 }
 
-function migrateDemoState(saved: DemoState): DemoState {
+function migrateDemoState(saved: DataState): DataState {
   saved = migrateLegacyDemoIds(saved)
   const accounts = saved.accounts.map(account => {
     const nameParts = account.name.trim().split(/\s+/)
@@ -207,7 +207,7 @@ function migrateDemoState(saved: DemoState): DemoState {
   }
 }
 
-const DemoContext = createContext<DemoStore | null>(null)
+export const DataStoreContext = createContext<DataStore | null>(null)
 
 function nextId(_records: Array<{ id: string }>) {
   return crypto.randomUUID()
@@ -247,7 +247,7 @@ export function syncFollowUpActivity(activities: ActivityRecord[], prestation: P
 }
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<DemoState>(() => migrateDemoState(seedState))
+  const [state, setState] = useState<DataState>(() => migrateDemoState(seedState))
   const [repositoryStatus, setRepositoryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [repositoryError, setRepositoryError] = useState<string | null>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -259,7 +259,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (!saved) return migrateDemoState(seedState)
-      const parsed = JSON.parse(saved) as DemoState | StoredDemoState
+      const parsed = JSON.parse(saved) as DataState | StoredDemoState
       const legacy = 'state' in parsed ? parsed.state : parsed
       return migrateDemoState(legacy)
     } catch {
@@ -277,7 +277,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
   }, [state, repositoryStatus])
 
-  const value = useMemo<DemoStore>(() => ({
+  const value = useMemo<DataStore>(() => ({
     ...state,
     repositoryStatus,
     repositoryError,
@@ -562,11 +562,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     },
   }), [state, repositoryStatus, repositoryError])
 
-  return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>
+  return <DataStoreContext.Provider value={value}>{children}</DataStoreContext.Provider>
 }
 
 export function useDemoStore() {
-  const store = useContext(DemoContext)
+  const store = useContext(DataStoreContext)
   if (!store) throw new Error('useDemoStore must be used within DemoProvider')
   return store
 }

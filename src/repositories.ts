@@ -6,6 +6,7 @@ import { documentSummary, paymentAvailable } from './documentPayments'
 import { verticalLabels, type Vertical } from './data'
 import { scenarioActivities, scenarioEngagements, scenarioOpportunities, scenarioPrestations } from './demoScenario'
 import { DEMO_NOW } from './demoTime'
+import { dataSource } from './persistence/dataSource'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
 export const formatMoney = (value: number) => `$${Math.max(0, Math.round(value)).toLocaleString('es-CL')}`
@@ -45,10 +46,10 @@ export function useRepositories() {
       return allocated >= total ? 'Pagado' : 'Parcial'
     }
 
-    const scenarioPrestationRecords = scenarioPrestations(store.prestations, vertical)
-    const opportunityRecords = scenarioOpportunities(store.opportunities, vertical)
-    const engagementRecords = scenarioEngagements(store.engagements, vertical)
-    const activityRecords = scenarioActivities(store.activities, vertical)
+    const scenarioPrestationRecords = dataSource === 'demo' ? scenarioPrestations(store.prestations, vertical) : store.prestations
+    const opportunityRecords = dataSource === 'demo' ? scenarioOpportunities(store.opportunities, vertical) : store.opportunities
+    const engagementRecords = dataSource === 'demo' ? scenarioEngagements(store.engagements, vertical) : store.engagements
+    const activityRecords = dataSource === 'demo' ? scenarioActivities(store.activities, vertical) : store.activities
     const prestations = scenarioPrestationRecords.map(prestation => ({
       ...prestation,
       payment: statusFor(prestation.id),

@@ -1296,6 +1296,10 @@ export type Database = {
           currency_code: string
           id: string
           name: string
+          reminder_email_enabled: boolean
+          reminder_primary_hours: number
+          reminder_secondary_enabled: boolean
+          reminder_secondary_hours: number
           tax_id: string | null
           timezone: string
           updated_at: string
@@ -1308,6 +1312,10 @@ export type Database = {
           currency_code?: string
           id?: string
           name: string
+          reminder_email_enabled?: boolean
+          reminder_primary_hours?: number
+          reminder_secondary_enabled?: boolean
+          reminder_secondary_hours?: number
           tax_id?: string | null
           timezone?: string
           updated_at?: string
@@ -1320,6 +1328,10 @@ export type Database = {
           currency_code?: string
           id?: string
           name?: string
+          reminder_email_enabled?: boolean
+          reminder_primary_hours?: number
+          reminder_secondary_enabled?: boolean
+          reminder_secondary_hours?: number
           tax_id?: string | null
           timezone?: string
           updated_at?: string
@@ -1388,6 +1400,28 @@ export type Database = {
       }
     }
     Functions: {
+      bootstrap_user_workspace: {
+        Args: {
+          p_first_name?: string
+          p_last_name?: string
+          p_vertical_type: string
+          p_workspace_name: string
+        }
+        Returns: string
+      }
+      create_payment_request_with_items: {
+        Args: {
+          p_account_id: string
+          p_amount: number
+          p_due_date?: string
+          p_items?: Json
+          p_notes?: string
+          p_origin_engagement_id?: string
+          p_origin_opportunity_id?: string
+          p_origin_prestation_id?: string
+        }
+        Returns: string
+      }
       create_workspace: {
         Args: {
           p_country_code?: string
