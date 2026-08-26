@@ -70,23 +70,50 @@ const activityStatusFromDb: Record<string,string> = { pending:'Pendiente',comple
 const activityStatusToDb: Record<string,string> = { Pendiente:'pending',Vencida:'pending',Completada:'completed',Cancelada:'cancelled' }
 const activityTypeToDb: Record<string,string> = { Tarea:'task',Llamada:'call',Reunión:'meeting',Email:'email',WhatsApp:'whatsapp',Nota:'note',Hito:'milestone' }
 
-function AuthPanel({ onReady }: { onReady: (user: User) => void }) {
-  const [mode, setMode] = useState<'login'|'signup'>('login')
+type AuthMode = 'login'|'signup'|'forgot'|'update'
+
+function AuthPanel({ recoveryMode, onReady, onRecoveryComplete }: { recoveryMode: boolean; onReady: (user: User) => void; onRecoveryComplete: () => void }) {
+  const [mode, setMode] = useState<AuthMode>(recoveryMode ? 'update' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  useEffect(() => { if (recoveryMode) setMode('update') }, [recoveryMode])
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (!supabase || busy) return
-    setBusy(true); setError('')
-    const result = mode === 'login'
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password })
-    setBusy(false)
-    if (result.error) { setError(result.error.message.includes('Invalid login') ? 'Email o contraseña incorrectos.' : 'No pudimos completar el acceso.'); return }
-    if (result.data.user) onReady(result.data.user)
+    setBusy(true); setError(''); setNotice('')
+    try {
+      if (mode === 'forgot') {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+        if (resetError) throw resetError
+        setNotice('Te enviamos un enlace para crear una nueva contraseña. Revisa tu correo.')
+        return
+      }
+      if (mode === 'update') {
+        if (password !== passwordConfirmation) { setError('Las contraseñas no coinciden.'); return }
+        const { data, error: updateError } = await supabase.auth.updateUser({ password })
+        if (updateError) throw updateError
+        setNotice('Tu contraseña fue actualizada correctamente.')
+        onRecoveryComplete()
+        if (data.user) onReady(data.user)
+        return
+      }
+      const result = mode === 'login'
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })
+      if (result.error) throw result.error
+      if (result.data.session?.user) onReady(result.data.session.user)
+      else if (mode === 'signup') setNotice('Cuenta creada. Revisa tu correo para confirmar tu email antes de ingresar.')
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : ''
+      setError(message.includes('Invalid login') ? 'Email o contraseña incorrectos.' : 'No pudimos completar esta acción. Inténtalo nuevamente.')
+    } finally { setBusy(false) }
   }
-  return <main className="auth-shell"><form className="card auth-card" onSubmit={submit}><span className="section-kicker">HAZENTO STAGING</span><h1>{mode === 'login' ? 'Inicia sesión' : 'Crea tu cuenta'}</h1><p>Accede a tu espacio de trabajo seguro.</p><label><span>Email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"/></label><label><span>Contraseña</span><input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}/></label>{error && <p className="form-error" role="alert">{error}</p>}<button className="primary-btn" disabled={busy}>{busy ? 'Procesando...' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}</button><button className="text-btn" type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}>{mode === 'login' ? 'Crear una cuenta' : 'Ya tengo una cuenta'}</button></form></main>
+  const title = mode === 'login' ? 'Inicia sesión' : mode === 'signup' ? 'Crea tu cuenta' : mode === 'forgot' ? 'Recupera tu contraseña' : 'Crea una nueva contraseña'
+  const submitLabel = mode === 'login' ? 'Ingresar' : mode === 'signup' ? 'Crear cuenta' : mode === 'forgot' ? 'Enviar enlace' : 'Actualizar contraseña'
+  return <main className="auth-shell"><form className="card auth-card" onSubmit={submit}><span className="section-kicker">HAZENTO</span><h1>{title}</h1><p>{mode === 'forgot' ? 'Te enviaremos un enlace seguro para continuar.' : mode === 'update' ? 'Elige una contraseña de al menos 8 caracteres.' : 'Accede a tu espacio de trabajo seguro.'}</p>{mode !== 'update' && <label><span>Email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"/></label>}{mode !== 'forgot' && <label><span>{mode === 'update' ? 'Nueva contraseña' : 'Contraseña'}</span><input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}/></label>}{mode === 'update' && <label><span>Confirmar nueva contraseña</span><input type="password" value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} required minLength={8} autoComplete="new-password"/></label>}{error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}<button className="primary-btn" disabled={busy}>{busy ? 'Procesando...' : submitLabel}</button>{mode === 'login' && <><button className="text-btn" type="button" onClick={() => { setMode('forgot'); setError(''); setNotice('') }}>Olvidé mi contraseña</button><button className="text-btn" type="button" onClick={() => { setMode('signup'); setError(''); setNotice('') }}>Crear una cuenta</button></>}{(mode === 'signup' || mode === 'forgot') && <button className="text-btn" type="button" onClick={() => { setMode('login'); setError(''); setNotice('') }}>Volver a iniciar sesión</button>}</form></main>
 }
 
 function mapAccount(row: AccountRow): AccountData {
@@ -104,6 +131,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User|null>(null)
   const [state, setState] = useState<DataState>(emptyState)
   const [workspaceId, setWorkspaceId] = useState<string|null>(null)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [status, setStatus] = useState<'loading'|'ready'|'error'>('loading')
   const [error, setError] = useState<string|null>(null)
 
@@ -144,7 +172,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     } catch (cause) { setError(friendlyError(cause)); setStatus('error') }
   }, [])
 
-  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase staging no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((_event, session) => { setUser(session?.user || null); if (session?.user) queueMicrotask(() => void load(session.user)); else { setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
+  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } setUser(session?.user || null); if (session?.user) queueMicrotask(() => void load(session.user)); else { setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
 
   const requireContext = () => { if (!supabase || !workspaceId) throw new Error('No existe un workspace activo.'); return { client: supabase, workspaceId } }
   const refresh = async () => { if (user) await load(user) }
@@ -177,8 +205,8 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     async updateService(id,changes){const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({name:changes.name,description:changes.description,default_duration_minutes:changes.duration?parseInt(changes.duration):undefined,default_price:changes.price?parseMoney(changes.price):undefined,active:changes.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async toggleService(id){const current=state.services.find(item=>item.id===id);if(!current)return;const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({active:!current.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async resetDemo(){throw new Error('Restaurar datos demo no está disponible en modo Supabase.')},
   }), [state,status,error,user,workspaceId,load])
 
-  if (!user) return <AuthPanel onReady={setUser}/>
-  if (status === 'loading') return <main className="repository-state"><div className="card"><h2>Cargando tu espacio de trabajo...</h2><p>Estamos recuperando tus datos desde Supabase staging.</p></div></main>
+  if (!user || passwordRecovery) return <AuthPanel recoveryMode={passwordRecovery} onReady={setUser} onRecoveryComplete={() => setPasswordRecovery(false)}/>
+  if (status === 'loading') return <main className="repository-state"><div className="card"><h2>Cargando tu espacio de trabajo...</h2><p>Estamos recuperando tus datos de forma segura.</p></div></main>
   if (status === 'error') return <main className="repository-state"><div className="card"><h2>No pudimos cargar Hazento</h2><p>{error}</p><button className="primary-btn" onClick={() => void load(user)}>Reintentar</button><button className="secondary-btn" onClick={() => void supabase?.auth.signOut()}>Cerrar sesión</button></div></main>
   return <DataStoreContext.Provider value={value}>{children}</DataStoreContext.Provider>
 }
