@@ -17,14 +17,14 @@ const engagementNames: Record<Vertical, string[]> = {
   other: ['Proyecto Acme', 'Proyecto Restaurante Oslo', 'Implementación Nike', 'Asesoría mensual'],
 }
 
-export const scenarioOpportunities = (records: OpportunityData[], vertical: Vertical) => vertical === 'health' ? records : records.map((record, index) => record.id <= 5 ? ({ ...record, title: opportunityNames[vertical][index % opportunityNames[vertical].length] }) : record)
-export const scenarioEngagements = (records: EngagementData[], vertical: Vertical) => vertical === 'health' ? records : records.map((record, index) => record.id <= 4 ? ({ ...record, name: engagementNames[vertical][index % engagementNames[vertical].length], type: verticalLabels[vertical].engagement, detail: record.detail.replace(/atenciones/gi, verticalLabels[vertical].prestations.toLowerCase()) }) : record)
+export const scenarioOpportunities = (records: OpportunityData[], vertical: Vertical) => vertical === 'health' ? records : records.map((record, index) => index < 5 ? ({ ...record, title: opportunityNames[vertical][index % opportunityNames[vertical].length] }) : record)
+export const scenarioEngagements = (records: EngagementData[], vertical: Vertical) => vertical === 'health' ? records : records.map((record, index) => index < 4 ? ({ ...record, name: engagementNames[vertical][index % engagementNames[vertical].length], type: verticalLabels[vertical].engagement, detail: record.detail.replace(/atenciones/gi, verticalLabels[vertical].prestations.toLowerCase()) }) : record)
 
 export function scenarioPrestations(records: PrestationData[], vertical: Vertical) {
   if (vertical === 'health') return records
   const labels = verticalLabels[vertical]
   return records.map((record, index) => {
-    if (record.id > 13) return record
+    if (index >= 13) return record
     const service = labels.demoServices.find(item => item.id === record.serviceId) || labels.demoServices[index % labels.demoServices.length]
     const status = record.status === 'Completada' ? labels.completedStatus : record.status === 'Programada' ? labels.scheduledStatus : ['No asistió', 'Cancelada'].includes(record.status) ? 'Cancelado' : record.status
     return { ...record, name: service.name, status, origin: ['Tratamiento', 'Plan'].includes(record.origin) ? labels.engagement : record.origin }
@@ -34,5 +34,5 @@ export function scenarioPrestations(records: PrestationData[], vertical: Vertica
 export function scenarioActivities(records: ActivityData[], vertical: Vertical) {
   if (vertical === 'health') return records
   const noun = verticalLabels[vertical].prestation.toLowerCase()
-  return records.map(record => record.id <= 7 ? ({ ...record, title: record.source === 'prestation_follow_up' ? 'Nota de avance' : record.title.replace(/sesión|atención/gi, noun) }) : record)
+  return records.map((record, index) => index < 7 ? ({ ...record, title: record.source === 'prestation_follow_up' ? 'Nota de avance' : record.title.replace(/sesión|atención/gi, noun) }) : record)
 }

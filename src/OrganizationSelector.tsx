@@ -8,15 +8,17 @@ type Labels = { organization: string; organizationRelationship: string; createOr
 export function OrganizationSelector({ organizations, labels, selectedId, onSelect, onCreate }: {
   organizations: OrganizationData[]
   labels: Labels
-  selectedId?: number
+  selectedId?: string
   onSelect: (organization?: OrganizationData) => void
-  onCreate: (record: NewOrganizationRecord) => OrganizationData
+  onCreate: (record: NewOrganizationRecord) => Promise<OrganizationData>
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [legalName, setLegalName] = useState('')
   const [taxId, setTaxId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const selected = organizations.find(organization => organization.id === selectedId)
   const duplicate = creating ? findOrganizationByName(organizations, query) : undefined
   const matches = useMemo(() => {
@@ -31,10 +33,11 @@ export function OrganizationSelector({ organizations, labels, selectedId, onSele
     setQuery('')
   }
 
-  const create = () => {
+  const create = async () => {
     const name = query.trim().replace(/\s+/g, ' ')
     if (!name || duplicate) return
-    choose(onCreate({ workspaceId: 1, name, legalName: legalName.trim() || undefined, taxId: taxId.trim() || undefined }))
+    setSaving(true); setError('')
+    try { choose(await onCreate({ workspaceId: 'workspace-demo-001', name, legalName: legalName.trim() || undefined, taxId: taxId.trim() || undefined })) } catch { setError('No pudimos crear la organización. Inténtalo nuevamente.') } finally { setSaving(false) }
     setLegalName('')
     setTaxId('')
   }
@@ -57,7 +60,7 @@ export function OrganizationSelector({ organizations, labels, selectedId, onSele
         <label><span>RUT</span><input value={taxId} onChange={event => setTaxId(event.target.value)} placeholder="Opcional"/></label>
         <label><span>Razón social</span><input value={legalName} onChange={event => setLegalName(event.target.value)} placeholder="Opcional"/></label>
         {duplicate && <div className="organization-duplicate"><b>Ya existe {labels.organization.toLowerCase()} con un nombre similar.</b><span>{duplicate.name}</span><button type="button" className="secondary-btn" onClick={() => choose(duplicate)}>Usar esta {labels.organization.toLowerCase()}</button></div>}
-        <footer><button type="button" className="ghost-btn" onClick={() => setCreating(false)}>Volver</button><button type="button" className="primary-btn" disabled={!query.trim() || Boolean(duplicate)} onClick={create}>Crear y seleccionar</button></footer>
+        {error && <p className="form-error">{error}</p>}<footer><button type="button" className="ghost-btn" onClick={() => setCreating(false)}>Volver</button><button type="button" className="primary-btn" disabled={saving || !query.trim() || Boolean(duplicate)} onClick={create}>{saving ? 'Guardando...' : 'Crear y seleccionar'}</button></footer>
       </div>}
     </div>}
   </div>

@@ -6,10 +6,10 @@ export type ReminderStatus = 'scheduled' | 'sent' | 'cancelled' | 'failed'
 export type ReminderSlot = 'primary' | 'secondary'
 
 export type AppointmentReminder = {
-  id: number
-  workspaceId: number
-  prestationId: number
-  accountId: number
+  id: string
+  workspaceId: string
+  prestationId: string
+  accountId: string
   recipientEmail: string
   scheduledFor: string
   status: ReminderStatus
@@ -101,8 +101,8 @@ export function reminderEligibility(prestation: Pick<PrestationData, 'date' | 's
   return { eligible: true as const }
 }
 
-function nextId(records: Array<{ id: number }>) {
-  return records.reduce((maximum, record) => Math.max(maximum, record.id), 0) + 1
+function nextId(records: Array<{ id: string }>) {
+  return crypto.randomUUID()
 }
 
 export function reconcileAppointmentReminders(
@@ -154,7 +154,7 @@ export function reconcileAppointmentReminders(
     }
     nextRecords.push({
       id: nextId(nextRecords),
-      workspaceId: account?.workspaceId ?? 1,
+      workspaceId: account?.workspaceId ?? 'workspace-demo-001',
       prestationId: prestation.id,
       accountId: prestation.accountId,
       recipientEmail: email,

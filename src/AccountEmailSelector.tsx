@@ -20,11 +20,11 @@ type AccountLabels = {
 type Props = {
   accounts: Account[]
   labels: AccountLabels
-  selectedAccountId: number | null
+  selectedAccountId: string | null
   onSelect: (account: Account | null) => void
-  onCreate: (account: NewAccountRecord) => Account
+  onCreate: (account: NewAccountRecord) => Promise<Account>
   organizations: OrganizationData[]
-  onCreateOrganization: (organization: NewOrganizationRecord) => OrganizationData
+  onCreateOrganization: (organization: NewOrganizationRecord) => Promise<OrganizationData>
 }
 
 export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSelect, onCreate, organizations, onCreateOrganization }: Props) {
@@ -35,9 +35,10 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
   const [duplicate, setDuplicate] = useState<Account | null>(null)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
-  const [organizationId, setOrganizationId] = useState<number | undefined>()
+  const [organizationId, setOrganizationId] = useState<string | undefined>()
   const [role, setRole] = useState('')
   const [createError, setCreateError] = useState('')
+  const [saving, setSaving] = useState(false)
   const normalizedQuery = normalizeEmail(query)
   const validEmail = isValidEmail(query)
   const exactMatch = findAccountByEmail(accounts, query)
@@ -68,16 +69,17 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
     setOpen(false)
   }
 
-  const createAccount = () => {
+  const createAccount = async () => {
     const existing = findAccountByEmail(accounts, query)
     if (existing) {
       setDuplicate(existing)
       return
     }
     if (!newName.trim()) { setCreateError('Ingresa el nombre para continuar.'); return }
-    const created = onCreate({
+    setSaving(true)
+    try { const created = await onCreate({
       name: newName.trim(),
-      workspaceId: 1,
+      workspaceId: 'workspace-demo-001',
       displayName: newName.trim(),
       firstName: newName.trim().split(/\s+/)[0],
       lastName: newName.trim().split(/\s+/).slice(1).join(' '),
@@ -93,7 +95,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
       phone: newPhone.trim(),
       rut: '',
     })
-    choose(created)
+    choose(created) } catch { setCreateError('No pudimos crear la persona. Inténtalo nuevamente.') } finally { setSaving(false) }
   }
 
   return <div className="account-email-selector form-span">
@@ -137,7 +139,7 @@ export function AccountEmailSelector({ accounts, labels, selectedAccountId, onSe
         <label><span>Cargo / Rol</span><input value={role} onChange={event => setRole(event.target.value)} placeholder="Opcional" disabled={!organizationId}/></label>
         {createError && <p className="form-error">{createError}</p>}
         {duplicate && <div className="duplicate-account"><b>Ya existe {labels.account.toLowerCase()} con este email.</b><span>{duplicate.name}<small>{duplicate.email}</small></span><button type="button" className="secondary-btn" onClick={() => choose(duplicate)}>Usar este {labels.account.toLowerCase()}</button></div>}
-        <footer><button type="button" className="ghost-btn" onClick={() => { setCreating(false); setOpen(true); setDuplicate(null) }}>Volver</button><button type="button" className="primary-btn" onClick={createAccount}>Crear y seleccionar</button></footer>
+        <footer><button type="button" className="ghost-btn" onClick={() => { setCreating(false); setOpen(true); setDuplicate(null) }}>Volver</button><button type="button" className="primary-btn" disabled={saving} onClick={createAccount}>{saving ? 'Guardando...' : 'Crear y seleccionar'}</button></footer>
       </div>
     </section>}
   </div>

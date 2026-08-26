@@ -6,7 +6,7 @@ const statusTone = (status: string) => status === 'Pagada' ? 'badge-green' : sta
 
 export function DocumentsPage() {
   const repository = useRepositories()
-  const [selectedId, setSelectedId] = useState<number | null>(repository.documents[0]?.id || null)
+  const [selectedId, setSelectedId] = useState<string | null>(repository.documents[0]?.id || null)
   const [showAdjustment, setShowAdjustment] = useState(false)
   const [error, setError] = useState('')
   const selected = repository.documents.find(item => item.id === selectedId)

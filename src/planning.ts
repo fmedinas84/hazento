@@ -2,13 +2,13 @@ import type { AccountData, ActivityData, EngagementData, PrestationData } from '
 
 export type CalendarEvent = {
   id: string
-  recordId: number
+  recordId: string
   kind: 'prestation' | 'activity'
   timestamp: number
   title: string
-  accountId?: number
+  accountId?: string
   accountName: string
-  engagementId?: number
+  engagementId?: string
   engagementName?: string
   status: string
   detail: string
@@ -52,12 +52,12 @@ export function buildCalendarEvents(input: {
   const prestationEvents: CalendarEvent[] = input.prestations.flatMap(prestation => {
     const timestamp = parsePlanningDate(prestation.date)
     if (!timestamp) return []
-    return [{ id: `prestation-${prestation.id}`, recordId: prestation.id, kind: 'prestation', timestamp, title: prestation.name, accountId: prestation.accountId, accountName: accountById.get(prestation.accountId)?.name || prestation.account, engagementId: prestation.engagementId, engagementName: engagementById.get(prestation.engagementId || 0)?.name, status: prestation.status, detail: prestation.description || prestation.origin }]
+    return [{ id: `prestation-${prestation.id}`, recordId: prestation.id, kind: 'prestation', timestamp, title: prestation.name, accountId: prestation.accountId, accountName: accountById.get(prestation.accountId)?.name || prestation.account, engagementId: prestation.engagementId, engagementName: engagementById.get(prestation.engagementId || '')?.name, status: prestation.status, detail: prestation.description || prestation.origin }]
   })
   const activityEvents: CalendarEvent[] = input.activities.flatMap(activity => {
     const timestamp = activityCalendarTimestamp(activity)
     if (!timestamp) return []
-    return [{ id: `activity-${activity.id}`, recordId: activity.id, kind: 'activity', timestamp, title: activity.title, accountId: activity.accountId, accountName: accountById.get(activity.accountId || 0)?.name || activity.relation.split(' · ')[0] || 'Sin cuenta', engagementId: activity.engagementId, engagementName: engagementById.get(activity.engagementId || 0)?.name, status: activity.status, detail: activity.description || activity.type, source: activity.source }]
+    return [{ id: `activity-${activity.id}`, recordId: activity.id, kind: 'activity', timestamp, title: activity.title, accountId: activity.accountId, accountName: accountById.get(activity.accountId || '')?.name || activity.relation.split(' · ')[0] || 'Sin cuenta', engagementId: activity.engagementId, engagementName: engagementById.get(activity.engagementId || '')?.name, status: activity.status, detail: activity.description || activity.type, source: activity.source }]
   })
   return [...prestationEvents, ...activityEvents].sort((left, right) => left.timestamp - right.timestamp)
 }
@@ -80,7 +80,7 @@ export function buildTimelineRows(input: {
       return { prestation, timestamp, outsideRange: Boolean(timestamp && (timestamp < start || timestamp > end)) }
     }).filter(milestone => milestone.timestamp)
     const completed = related.filter(prestation => prestation.status === 'Completada').length
-    dated.push({ engagement, account: accountById.get(engagement.accountId || 0), milestones, start, end, progress: related.length ? Math.round(completed / related.length * 100) : 0 })
+    dated.push({ engagement, account: accountById.get(engagement.accountId || ''), milestones, start, end, progress: related.length ? Math.round(completed / related.length * 100) : 0 })
   })
   return { dated: dated.sort((left, right) => left.start - right.start), undated }
 }

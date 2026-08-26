@@ -34,6 +34,7 @@ import {
 import { findAccountByEmail, normalizeEmail, prepareAccountCreate, type NewAccountRecord } from './accountEmail'
 import { findOrganizationByName, type NewOrganizationRecord } from './organizationName'
 import { validateAdjustment, validateAllocation } from './documentPayments'
+import { migrateLegacyIds } from './demoIdMigration'
 import {
   defaultReminderSettings,
   reconcileAppointmentReminders,
@@ -62,10 +63,10 @@ export type ProfileSettings = { firstName: string; lastName: string; email: stri
 export type WorkspaceSettings = { name: string; address: string; country: string; currency: string; timezone: string }
 
 const seedAppointmentReminders: AppointmentReminder[] = [{
-  id: 1,
-  workspaceId: 1,
-  prestationId: 9,
-  accountId: 5,
+  id: '1',
+  workspaceId: '1',
+  prestationId: '9',
+  accountId: '5',
   recipientEmail: 'daniela@oslo.cl',
   scheduledFor: '2026-08-19T19:30:00.000Z',
   status: 'scheduled',
@@ -100,43 +101,47 @@ type DemoState = {
 }
 
 type DemoStore = DemoState & {
-  updateProfile: (changes: Partial<ProfileSettings>) => void
-  updateWorkspace: (changes: Partial<WorkspaceSettings>) => void
-  addAccount: (record: NewAccountRecord) => Account
-  updateAccount: (id: number, changes: Partial<Account>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => void
-  addOrganization: (record: NewOrganizationRecord) => Organization
-  updateOrganization: (id: number, changes: Partial<Organization>) => void
-  archiveOrganization: (id: number) => void
-  addContact: (record: Omit<Contact, 'id'>) => Contact
-  addOpportunity: (record: Omit<Opportunity, 'id'>) => Opportunity
-  updateOpportunity: (id: number, changes: Partial<Opportunity>) => void
-  addEngagement: (record: Omit<Engagement, 'id'>) => Engagement
-  updateEngagement: (id: number, changes: Partial<Engagement>) => void
-  addPrestation: (record: Omit<Prestation, 'id'>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => Prestation
-  updatePrestation: (id: number, changes: Partial<Prestation>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => void
-  updateReminderSettings: (changes: Partial<ReminderSettings>, reminderContext: Omit<ReminderSyncContext, 'settings'>) => void
-  cancelAppointmentReminders: (prestationId: number) => void
-  markReminderSent: (id: number) => void
-  markReminderFailed: (id: number) => void
-  addActivity: (record: Omit<ActivityRecord, 'id'>) => ActivityRecord
-  toggleActivity: (id: number) => void
-  addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: number; amount: number }>, documentAllocations?: Array<{ documentId: number; amount: number }>) => Payment
-  addPaymentRequest: (record: Omit<PaymentRequest, 'id' | 'createdAt' | 'updatedAt' | 'waivedAmount' | 'status'>, items: Array<Omit<PaymentRequestItem, 'id' | 'paymentRequestId'>>) => PaymentRequest
-  settlePaymentRequest: (id: number, receivedAmount: number, method: string, differenceAction?: 'transfer' | 'waive', waiverReason?: string) => void
-  cancelPaymentRequest: (id: number) => void
-  voidPayment: (id: number, reason: string) => void
-  updatePayment: (id: number, changes: Partial<Payment>) => void
-  updatePaymentWithDocumentAllocations: (id: number, changes: Partial<Payment>, allocations: Array<{ documentId: number; amount: number }>) => void
-  saveDocumentAllocation: (record: Omit<DocumentPaymentAllocation, 'id'>, allocationId?: number) => void
-  deleteDocumentAllocation: (id: number) => void
-  addDocumentAdjustment: (record: Omit<DocumentAdjustment, 'id' | 'taxCorrectionStatus'>) => void
-  addService: (record: Omit<Service, 'id'>) => Service
-  updateService: (id: number, changes: Partial<Service>) => void
-  toggleService: (id: number) => void
-  resetDemo: () => void
+  repositoryStatus: 'loading' | 'ready' | 'error'
+  repositoryError: string | null
+  retryRepository: () => void
+  updateProfile: (changes: Partial<ProfileSettings>) => Promise<void>
+  updateWorkspace: (changes: Partial<WorkspaceSettings>) => Promise<void>
+  addAccount: (record: NewAccountRecord) => Promise<Account>
+  updateAccount: (id: string, changes: Partial<Account>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => Promise<void>
+  addOrganization: (record: NewOrganizationRecord) => Promise<Organization>
+  updateOrganization: (id: string, changes: Partial<Organization>) => Promise<void>
+  archiveOrganization: (id: string) => Promise<void>
+  addContact: (record: Omit<Contact, 'id'>) => Promise<Contact>
+  addOpportunity: (record: Omit<Opportunity, 'id'>) => Promise<Opportunity>
+  updateOpportunity: (id: string, changes: Partial<Opportunity>) => Promise<void>
+  addEngagement: (record: Omit<Engagement, 'id'>) => Promise<Engagement>
+  updateEngagement: (id: string, changes: Partial<Engagement>) => Promise<void>
+  addPrestation: (record: Omit<Prestation, 'id'>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => Promise<Prestation>
+  updatePrestation: (id: string, changes: Partial<Prestation>, reminderContext?: Omit<ReminderSyncContext, 'settings'>) => Promise<void>
+  updateReminderSettings: (changes: Partial<ReminderSettings>, reminderContext: Omit<ReminderSyncContext, 'settings'>) => Promise<void>
+  cancelAppointmentReminders: (prestationId: string) => Promise<void>
+  markReminderSent: (id: string) => Promise<void>
+  markReminderFailed: (id: string) => Promise<void>
+  addActivity: (record: Omit<ActivityRecord, 'id'>) => Promise<ActivityRecord>
+  toggleActivity: (id: string) => Promise<void>
+  addPayment: (record: Omit<Payment, 'id'>, allocations: Array<{ prestationId: string; amount: number }>, documentAllocations?: Array<{ documentId: string; amount: number }>) => Promise<Payment>
+  addPaymentRequest: (record: Omit<PaymentRequest, 'id' | 'createdAt' | 'updatedAt' | 'waivedAmount' | 'status'>, items: Array<Omit<PaymentRequestItem, 'id' | 'paymentRequestId'>>) => Promise<PaymentRequest>
+  settlePaymentRequest: (id: string, receivedAmount: number, method: string, differenceAction?: 'transfer' | 'waive', waiverReason?: string) => Promise<void>
+  cancelPaymentRequest: (id: string) => Promise<void>
+  voidPayment: (id: string, reason: string) => Promise<void>
+  updatePayment: (id: string, changes: Partial<Payment>) => Promise<void>
+  updatePaymentWithDocumentAllocations: (id: string, changes: Partial<Payment>, allocations: Array<{ documentId: string; amount: number }>) => Promise<void>
+  saveDocumentAllocation: (record: Omit<DocumentPaymentAllocation, 'id'>, allocationId?: string) => Promise<void>
+  deleteDocumentAllocation: (id: string) => Promise<void>
+  addDocumentAdjustment: (record: Omit<DocumentAdjustment, 'id' | 'taxCorrectionStatus'>) => Promise<void>
+  addService: (record: Omit<Service, 'id'>) => Promise<Service>
+  updateService: (id: string, changes: Partial<Service>) => Promise<void>
+  toggleService: (id: string) => Promise<void>
+  resetDemo: () => Promise<void>
 }
 
 const STORAGE_KEY = 'hazento-demo-v4'
+const DEMO_SCHEMA_VERSION = 5
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DemoState = {
   profile: { firstName: 'Francisca', lastName: 'Medina', email: 'francisca@hazento.cl', phone: '+56 9 1234 5678' },
@@ -161,10 +166,18 @@ const seedState: DemoState = {
   reminderSettings: defaultReminderSettings,
 }
 
+type StoredDemoState = { demoSchemaVersion: number; state: DemoState }
+
+/** One-way, idempotent migration for numeric and numeric-looking legacy IDs. */
+export function migrateLegacyDemoIds(saved: DemoState): DemoState {
+  return migrateLegacyIds(saved)
+}
+
 function migrateDemoState(saved: DemoState): DemoState {
+  saved = migrateLegacyDemoIds(saved)
   const accounts = saved.accounts.map(account => {
     const nameParts = account.name.trim().split(/\s+/)
-    return { ...account, workspaceId: account.workspaceId ?? 1, displayName: account.displayName || account.name, firstName: account.firstName || nameParts[0], lastName: account.lastName || nameParts.slice(1).join(' '), email: account.email ? normalizeEmail(account.email) : undefined }
+    return { ...account, workspaceId: account.workspaceId ?? 'workspace-demo-001', displayName: account.displayName || account.name, firstName: account.firstName || nameParts[0], lastName: account.lastName || nameParts.slice(1).join(' '), email: account.email ? normalizeEmail(account.email) : undefined }
   })
   const accountIdFor = (name: string) => accounts.find(account => account.name === name)?.id
   return {
@@ -178,7 +191,7 @@ function migrateDemoState(saved: DemoState): DemoState {
     engagements: saved.engagements.map(engagement => ({ ...engagement, accountId: engagement.accountId ?? accountIdFor(engagement.account) })),
     prestations: saved.prestations.map(prestation => ({
       ...prestation,
-      accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? 0,
+      accountId: prestation.accountId ?? accountIdFor(prestation.account) ?? '',
       serviceId: prestation.serviceId ?? seedServices.find(service => service.name === prestation.name)?.id,
     })),
     activities: saved.activities.map(activity => ({ ...activity, accountId: activity.accountId ?? accountIdFor(activity.relation.split(' · ')[0]) })),
@@ -196,8 +209,8 @@ function migrateDemoState(saved: DemoState): DemoState {
 
 const DemoContext = createContext<DemoStore | null>(null)
 
-function nextId(records: Array<{ id: number }>) {
-  return records.reduce((max, record) => Math.max(max, record.id), 0) + 1
+function nextId(_records: Array<{ id: string }>) {
+  return crypto.randomUUID()
 }
 
 function formatActivityDate(isoDate: string) {
@@ -234,33 +247,53 @@ export function syncFollowUpActivity(activities: ActivityRecord[], prestation: P
 }
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<DemoState>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? migrateDemoState(JSON.parse(saved) as DemoState) : seedState
-    } catch {
-      return seedState
-    }
-  })
+  const [state, setState] = useState<DemoState>(() => migrateDemoState(seedState))
+  const [repositoryStatus, setRepositoryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [repositoryError, setRepositoryError] = useState<string | null>(null)
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    let active = true
+    setRepositoryStatus('loading'); setRepositoryError(null)
+    Promise.resolve().then(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (!saved) return migrateDemoState(seedState)
+      const parsed = JSON.parse(saved) as DemoState | StoredDemoState
+      const legacy = 'state' in parsed ? parsed.state : parsed
+      return migrateDemoState(legacy)
+    } catch {
+      throw new Error('No pudimos cargar los datos guardados en este navegador.')
+    }
+    }).then(next => { if (active) { setState(next); setRepositoryStatus('ready') } }).catch(cause => {
+      if (active) { setRepositoryStatus('error'); setRepositoryError(cause instanceof Error ? cause.message : 'No pudimos cargar tus datos.') }
+    })
+    return () => { active = false }
+  }, [loadAttempt])
+
+  useEffect(() => {
+    if (repositoryStatus !== 'ready') return
+    const stored: StoredDemoState = { demoSchemaVersion: DEMO_SCHEMA_VERSION, state }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+  }, [state, repositoryStatus])
 
   const value = useMemo<DemoStore>(() => ({
     ...state,
-    updateProfile(changes) {
+    repositoryStatus,
+    repositoryError,
+    retryRepository: () => setLoadAttempt(value => value + 1),
+    async updateProfile(changes) {
       setState(current => ({ ...current, profile: { ...current.profile, ...changes } }))
     },
-    updateWorkspace(changes) {
+    async updateWorkspace(changes) {
       setState(current => ({ ...current, workspace: { ...current.workspace, ...changes } }))
     },
-    addAccount(record) {
+    async addAccount(record) {
       const result = prepareAccountCreate(state.accounts, record, colors)
       if (result.created) setState(current => ({ ...current, accounts: [result.account, ...current.accounts] }))
       return result.account
     },
-    updateAccount(id, changes, reminderContext) {
+    async updateAccount(id, changes, reminderContext) {
       setState(current => {
         const normalizedChanges = Object.prototype.hasOwnProperty.call(changes, 'email') ? { ...changes, email: normalizeEmail(changes.email || '') || undefined } : changes
         if (normalizedChanges.email && findAccountByEmail(current.accounts, normalizedChanges.email, id)) return current
@@ -287,7 +320,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
       })
     },
-    addOrganization(record) {
+    async addOrganization(record) {
       const existing = findOrganizationByName(state.organizations, record.name)
       if (existing) return existing
       const savedAt = new Date().toISOString()
@@ -295,39 +328,39 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       setState(current => ({ ...current, organizations: [created, ...current.organizations] }))
       return created
     },
-    updateOrganization(id, changes) {
+    async updateOrganization(id, changes) {
       setState(current => {
         if (changes.name && findOrganizationByName(current.organizations, changes.name, id)) return current
         return { ...current, organizations: current.organizations.map(record => record.id === id ? { ...record, ...changes, name: changes.name?.trim().replace(/\s+/g, ' ') || record.name, updatedAt: new Date().toISOString() } : record) }
       })
     },
-    archiveOrganization(id) {
+    async archiveOrganization(id) {
       setState(current => ({ ...current, organizations: current.organizations.map(record => record.id === id ? { ...record, archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : record) }))
     },
-    addContact(record) {
+    async addContact(record) {
       const created: Contact = { ...record, id: nextId(state.contacts) }
       setState(current => ({ ...current, contacts: [...current.contacts, created] }))
       return created
     },
-    addOpportunity(record) {
+    async addOpportunity(record) {
       const savedAt = new Date().toISOString()
       const created: Opportunity = { ...record, id: nextId(state.opportunities), createdAt: record.createdAt ?? savedAt, updatedAt: record.updatedAt ?? savedAt }
       setState(current => ({ ...current, opportunities: [created, ...current.opportunities] }))
       return created
     },
-    updateOpportunity(id, changes) {
+    async updateOpportunity(id, changes) {
       setState(current => ({ ...current, opportunities: current.opportunities.map(record => record.id === id ? { ...record, ...changes, updatedAt: new Date().toISOString() } : record) }))
     },
-    addEngagement(record) {
+    async addEngagement(record) {
       const savedAt = new Date().toISOString()
       const created: Engagement = { ...record, id: nextId(state.engagements), createdAt: record.createdAt ?? savedAt, updatedAt: record.updatedAt ?? savedAt }
       setState(current => ({ ...current, engagements: [created, ...current.engagements] }))
       return created
     },
-    updateEngagement(id, changes) {
+    async updateEngagement(id, changes) {
       setState(current => ({ ...current, engagements: current.engagements.map(record => record.id === id ? { ...record, ...changes, updatedAt: new Date().toISOString() } : record) }))
     },
-    addPrestation(record, reminderContext) {
+    async addPrestation(record, reminderContext) {
       const savedAt = new Date().toISOString()
       const created: Prestation = { ...record, id: nextId(state.prestations), createdAt: record.createdAt ?? savedAt }
       setState(current => {
@@ -344,7 +377,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       })
       return created
     },
-    updatePrestation(id, changes, reminderContext) {
+    async updatePrestation(id, changes, reminderContext) {
       setState(current => {
         const existing = current.prestations.find(record => record.id === id)
         if (!existing) return current
@@ -362,7 +395,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
       })
     },
-    updateReminderSettings(changes, reminderContext) {
+    async updateReminderSettings(changes, reminderContext) {
       setState(current => {
         const settings = { ...current.reminderSettings, ...changes }
         let reminders = current.appointmentReminders
@@ -372,28 +405,27 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, reminderSettings: settings, appointmentReminders: reminders }
       })
     },
-    cancelAppointmentReminders(prestationId) {
+    async cancelAppointmentReminders(prestationId) {
       setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.prestationId === prestationId && record.status === 'scheduled' ? { ...record, status: 'cancelled', errorMessage: 'Cancelado manualmente', updatedAt: new Date().toISOString() } : record) }))
     },
-    markReminderSent(id) {
+    async markReminderSent(id) {
       setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.id === id ? { ...record, status: 'sent', sentAt: new Date().toISOString(), providerMessageId: `mock_${record.id}_${Date.now()}`, errorMessage: undefined, updatedAt: new Date().toISOString() } : record) }))
     },
-    markReminderFailed(id) {
+    async markReminderFailed(id) {
       setState(current => ({ ...current, appointmentReminders: current.appointmentReminders.map(record => record.id === id ? { ...record, status: 'failed', errorMessage: 'Fallo simulado del proveedor de desarrollo', updatedAt: new Date().toISOString() } : record) }))
     },
-    addActivity(record) {
+    async addActivity(record) {
       const created: ActivityRecord = { ...record, id: nextId(state.activities), createdAt: record.createdAt ?? new Date().toISOString() }
       setState(current => ({ ...current, activities: [created, ...current.activities] }))
       return created
     },
-    toggleActivity(id) {
+    async toggleActivity(id) {
       setState(current => ({ ...current, activities: current.activities.map(record => record.id === id ? { ...record, status: record.status === 'Completada' ? 'Pendiente' : 'Completada' } : record) }))
     },
-    addPayment(record, allocations, documentAllocations = []) {
+    async addPayment(record, allocations, documentAllocations = []) {
       const created: Payment = { ...record, id: nextId(state.payments), createdAt: record.createdAt ?? new Date().toISOString() }
-      const firstAllocationId = nextId(state.paymentAllocations)
       const createdAllocations: PaymentAllocation[] = allocations.map((allocation, index) => ({
-        id: firstAllocationId + index,
+        id: nextId(state.paymentAllocations),
         paymentId: created.id,
         prestationId: allocation.prestationId,
         amount: allocation.amount,
@@ -411,17 +443,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       })
       return created
     },
-    addPaymentRequest(record, items) {
+    async addPaymentRequest(record, items) {
       const savedAt = new Date().toISOString()
       const created: PaymentRequest = { ...record, id: nextId(state.paymentRequests), status: 'Pendiente', waivedAmount: 0, createdAt: savedAt, updatedAt: savedAt }
-      const firstItemId = nextId(state.paymentRequestItems)
-      const createdItems = items.map((item, index) => ({ ...item, id: firstItemId + index, paymentRequestId: created.id }))
+      const createdItems = items.map(item => ({ ...item, id: nextId(state.paymentRequestItems), paymentRequestId: created.id }))
       if (!created.amount || created.amount <= 0) throw new Error('El monto solicitado debe ser mayor que cero.')
       if (!createdItems.length) throw new Error('Agrega al menos un concepto.')
       setState(current => ({ ...current, paymentRequests: [created, ...current.paymentRequests], paymentRequestItems: [...current.paymentRequestItems, ...createdItems] }))
       return created
     },
-    settlePaymentRequest(id, receivedAmount, method, differenceAction, waiverReason) {
+    async settlePaymentRequest(id, receivedAmount, method, differenceAction, waiverReason) {
       setState(current => {
         const request = current.paymentRequests.find(item => item.id === id)
         if (!request || request.status !== 'Pendiente') throw new Error('La solicitud ya no está pendiente.')
@@ -439,17 +470,16 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         if (differenceAction === 'transfer') {
           const successor: PaymentRequest = { ...request, id: nextId(requests), parentRequestId: request.id, status: 'Pendiente', amount: outstanding - receivedAmount, waivedAmount: 0, waiverReason: undefined, note: `Saldo trasladado desde solicitud #${request.id}`, createdAt: now, updatedAt: now }
           const sourceItems = current.paymentRequestItems.filter(item => item.paymentRequestId === id)
-          const firstItemId = nextId(items)
-          items = [...items, ...sourceItems.map((item, index) => ({ ...item, id: firstItemId + index, paymentRequestId: successor.id, amount: index === 0 ? successor.amount : 0 }))]
+          items = [...items, ...sourceItems.map((item, index) => ({ ...item, id: nextId(items), paymentRequestId: successor.id, amount: index === 0 ? successor.amount : 0 }))]
           requests = [successor, ...requests]
         }
         return { ...current, payments: [payment, ...current.payments], paymentRequests: requests, paymentRequestItems: items, paymentRequestAllocations: [...current.paymentRequestAllocations, allocation] }
       })
     },
-    cancelPaymentRequest(id) {
+    async cancelPaymentRequest(id) {
       setState(current => ({ ...current, paymentRequests: current.paymentRequests.map(item => item.id === id && item.status === 'Pendiente' ? { ...item, status: 'Cancelada', updatedAt: new Date().toISOString() } : item) }))
     },
-    voidPayment(id, reason) {
+    async voidPayment(id, reason) {
       const cleanReason = reason.trim()
       if (!cleanReason) throw new Error('Indica el motivo de la anulación.')
       setState(current => {
@@ -467,7 +497,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, payments, paymentRequests }
       })
     },
-    updatePayment(id, changes) {
+    async updatePayment(id, changes) {
       setState(current => {
         const payment = current.payments.find(record => record.id === id)
         if (!payment) return current
@@ -478,7 +508,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, payments: current.payments.map(record => record.id === id ? updated : record) }
       })
     },
-    updatePaymentWithDocumentAllocations(id, changes, allocations) {
+    async updatePaymentWithDocumentAllocations(id, changes, allocations) {
       setState(current => {
         const payment = current.payments.find(record => record.id === id)
         if (!payment) throw new Error('No encontramos el pago.')
@@ -494,7 +524,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, payments, documentPaymentAllocations: nextAllocations }
       })
     },
-    saveDocumentAllocation(record, allocationId) {
+    async saveDocumentAllocation(record, allocationId) {
       setState(current => {
         const payment = current.payments.find(item => item.id === record.paymentId)
         const document = current.documents.find(item => item.id === record.documentId)
@@ -504,10 +534,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, documentPaymentAllocations: allocationId ? current.documentPaymentAllocations.map(item => item.id === allocationId ? allocation : item) : [...current.documentPaymentAllocations, allocation] }
       })
     },
-    deleteDocumentAllocation(id) {
+    async deleteDocumentAllocation(id) {
       setState(current => ({ ...current, documentPaymentAllocations: current.documentPaymentAllocations.filter(item => item.id !== id) }))
     },
-    addDocumentAdjustment(record) {
+    async addDocumentAdjustment(record) {
       setState(current => {
         const document = current.documents.find(item => item.id === record.documentId)
         if (!document) throw new Error('No encontramos la boleta.')
@@ -516,21 +546,21 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return { ...current, documentAdjustments: [...current.documentAdjustments, adjustment] }
       })
     },
-    addService(record) {
+    async addService(record) {
       const created: Service = { ...record, id: nextId(state.services) }
       setState(current => ({ ...current, services: [created, ...current.services] }))
       return created
     },
-    updateService(id, changes) {
+    async updateService(id, changes) {
       setState(current => ({ ...current, services: current.services.map(record => record.id === id ? { ...record, ...changes } : record) }))
     },
-    toggleService(id) {
+    async toggleService(id) {
       setState(current => ({ ...current, services: current.services.map(record => record.id === id ? { ...record, active: !record.active } : record) }))
     },
-    resetDemo() {
+    async resetDemo() {
       setState(seedState)
     },
-  }), [state])
+  }), [state, repositoryStatus, repositoryError])
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>
 }
