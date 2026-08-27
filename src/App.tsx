@@ -570,9 +570,10 @@ function RepositoryPaymentsPage({ labels }: { labels: Labels }) {
 function PaymentsPage({ labels, onCreate }: { labels: typeof verticalLabels[Vertical]; onCreate:()=>void }) { const store=useRepositories();const requested=new URLSearchParams(window.location.search).get('status');const [active,setActive]=useState(requested==='Pendientes'?'Pendientes':'Registrados');const pending=store.prestations.filter(item=>item.payment!=='Pagado');const totalPending=pending.reduce((sum,item)=>sum+Number(item.amount.replace(/\D/g,'')),0);return <><PageHeader title="Pagos" description={`Responde quién te debe y asigna cada cobro a sus ${labels.prestations.toLowerCase()} pendientes.`} action="Registrar pago" onAction={onCreate}/><div className="metrics-grid three"><MetricCard label="Cobrado este mes" value="$3.420.000" meta="↗ 12% vs. mes anterior" icon={WalletCards} tone="green"/><MetricCard label="Por cobrar" value={`$${totalPending.toLocaleString('es-CL')}`} meta={`${pending.length} ${labels.prestations.toLowerCase()} con saldo`} icon={Clock3} tone="orange"/><MetricCard label="Pagos registrados" value={String(store.payments.length)} meta="Historial disponible" icon={CreditCard} tone="blue"/></div><div className="tabs standalone">{['Registrados','Pendientes'].map(tab=><button className={active===tab?'active':''} onClick={()=>setActive(tab)} key={tab}>{tab}{tab==='Pendientes'&&<span>{pending.length}</span>}</button>)}</div><div className="table-card card"><table><thead><tr><th>Fecha</th><th>{labels.account}</th><th>Monto</th><th>{active==='Pendientes'?labels.prestation:'Método'}</th><th>Estado</th><th>{active==='Pendientes'?'Origen':'Asignación'}</th></tr></thead><tbody>{active==='Pendientes'?pending.map(p=><tr key={p.id}><td>{p.date}</td><td><b>{p.account}</b></td><td className="number">{p.amount}</td><td>{p.name}</td><td><StatusBadge>{p.payment}</StatusBadge></td><td>{p.origin}</td></tr>):store.payments.map(p=><tr key={p.id}><td>{p.date}</td><td><b>{p.account}</b></td><td className="number">{p.amount}</td><td>{p.method}</td><td><StatusBadge>{p.status}</StatusBadge></td><td>{p.allocations}</td></tr>)}</tbody></table></div></> }
 
 function RepositoryServicesPage({ labels, onCreate }: { labels: Labels; onCreate: () => void }) {
-  const baseRepositories = useRepositories()
-  const repositories = { ...baseRepositories, services: labels.demoServices.map(service => ({ ...service, active: baseRepositories.services.find(item => item.id === service.id)?.active ?? service.active })) }
+  const repositories = useRepositories()
   const [editing, setEditing] = useState<string | null>(null)
+  const [toggling, setToggling] = useState<string | null>(null)
+  const [actionError, setActionError] = useState('')
   const current = repositories.services.find(service => service.id === editing)
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -581,9 +582,22 @@ function RepositoryServicesPage({ labels, onCreate }: { labels: Labels; onCreate
     await repositories.updateService(current.id, { name: String(values.name), description: String(values.description), duration: `${String(values.duration)} min`, price: formatMoney(parseMoney(String(values.price))) })
     setEditing(null)
   }
+  const toggle = async (id: string) => {
+    if (toggling) return
+    setToggling(id)
+    setActionError('')
+    try {
+      await repositories.toggleService(id)
+    } catch {
+      setActionError(`No pudimos actualizar este ${labels.service.toLowerCase()}. Inténtalo nuevamente.`)
+    } finally {
+      setToggling(null)
+    }
+  }
   return <>
     <PageHeader title={labels.services} description={`Configura precios y duraciones sugeridas para crear ${labels.prestations.toLowerCase()} más rápido.`} action={`Crear ${labels.service.toLowerCase()}`} onAction={onCreate}/>
-    <div className="service-grid">{repositories.services.map(service => <article className={cls('service-card card', !service.active && 'disabled-card')} key={service.id}><div><span className="service-icon"><HeartPulse size={20}/></span><StatusBadge>{service.active ? 'Activo' : 'Inactivo'}</StatusBadge></div><h3>{service.name}</h3><p>{service.description}</p><footer><span><Clock3 size={15}/>{service.duration}</span><b>{service.price}</b></footer><div className="service-card-actions"><button className="service-action" onClick={() => setEditing(service.id)}>Editar</button><button className="service-action" onClick={async () => await repositories.toggleService(service.id)}>{service.active ? 'Desactivar' : 'Activar'}</button></div></article>)}</div>
+    {actionError && <p className="form-error" role="alert">{actionError}</p>}
+    <div className="service-grid">{repositories.services.map(service => <article className={cls('service-card card', !service.active && 'disabled-card')} key={service.id}><div><span className="service-icon"><HeartPulse size={20}/></span><StatusBadge>{service.active ? 'Activo' : 'Inactivo'}</StatusBadge></div><h3>{service.name}</h3><p>{service.description}</p><footer><span><Clock3 size={15}/>{service.duration}</span><b>{service.price}</b></footer><div className="service-card-actions"><button className="service-action" onClick={() => setEditing(service.id)}>Editar</button><button className="service-action" disabled={toggling === service.id} onClick={() => void toggle(service.id)}>{toggling === service.id ? 'Guardando...' : service.active ? 'Desactivar' : 'Activar'}</button></div></article>)}</div>
     {current && <Modal title={`Editar ${labels.service.toLowerCase()}`} onClose={() => setEditing(null)}><form onSubmit={save}><div className="form-grid"><label><span>Nombre *</span><input name="name" required defaultValue={current.name}/></label><label><span>Precio sugerido</span><input name="price" required defaultValue={current.price}/></label><label><span>Duración (min)</span><input name="duration" type="number" defaultValue={current.duration.match(/\d+/)?.[0] || 60}/></label><label><span>Descripción</span><input name="description" defaultValue={current.description}/></label></div><footer className="modal-actions"><button type="button" className="ghost-btn" onClick={() => setEditing(null)}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer></form></Modal>}
   </>
 }

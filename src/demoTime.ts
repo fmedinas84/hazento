@@ -1,11 +1,17 @@
+import { dataSource } from './persistence/dataSource'
+
 export const DEMO_NOW = new Date('2026-08-18T12:00:00-04:00')
 
 export function demoToday() {
-  return new Date(DEMO_NOW)
+  return dataSource === 'demo' ? new Date(DEMO_NOW) : new Date()
 }
 
 export function demoDateInput() {
-  return DEMO_NOW.toISOString().slice(0, 10)
+  const today = demoToday()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function demoMonthRange() {

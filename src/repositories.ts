@@ -5,7 +5,7 @@ import { useDemoStore } from './store'
 import { documentSummary, paymentAvailable } from './documentPayments'
 import { verticalLabels, type Vertical } from './data'
 import { scenarioActivities, scenarioEngagements, scenarioOpportunities, scenarioPrestations } from './demoScenario'
-import { DEMO_NOW } from './demoTime'
+import { demoToday } from './demoTime'
 import { dataSource } from './persistence/dataSource'
 
 export const parseMoney = (value: string) => Number(value.replace(/[^0-9-]/g, '')) || 0
@@ -24,7 +24,7 @@ export function useRepositories() {
 
   return useMemo(() => {
     const labels = verticalLabels[vertical]
-    const reminderContext = { supportsAppointmentReminders: labels.supportsAppointmentReminders, scheduledStatus: labels.scheduledStatus, now: DEMO_NOW }
+    const reminderContext = { supportsAppointmentReminders: labels.supportsAppointmentReminders, scheduledStatus: labels.scheduledStatus, now: demoToday() }
     const addPrestation = (record: Parameters<typeof store.addPrestation>[0]) => store.addPrestation(record, reminderContext)
     const updatePrestation = (id: string, changes: Parameters<typeof store.updatePrestation>[1]) => store.updatePrestation(id, changes, reminderContext)
     const updateAccount = (id: string, changes: Parameters<typeof store.updateAccount>[1]) => store.updateAccount(id, changes, reminderContext)

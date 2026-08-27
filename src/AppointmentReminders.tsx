@@ -10,7 +10,7 @@ import {
   type AppointmentReminder,
 } from './reminders'
 import { verticalLabels, type PrestationData, type Vertical } from './data'
-import { DEMO_NOW } from './demoTime'
+import { demoToday } from './demoTime'
 
 type Labels = typeof verticalLabels[Vertical]
 
@@ -36,7 +36,7 @@ export function AppointmentReminderPanel({ prestation, labels }: { prestation: P
   if (!labels.supportsAppointmentReminders) return null
   const account = repositories.accounts.find(record => record.id === prestation.accountId)
   const reminders = repositories.reminderRepository.getByPrestation(prestation.id).sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor))
-  const eligibility = reminderEligibility(prestation, account, { supportsAppointmentReminders: true, scheduledStatus: labels.scheduledStatus, settings: repositories.reminderSettings, now: DEMO_NOW })
+  const eligibility = reminderEligibility(prestation, account, { supportsAppointmentReminders: true, scheduledStatus: labels.scheduledStatus, settings: repositories.reminderSettings, now: demoToday() })
   const appointment = parseAppointmentDate(prestation.date)
   const visible = reminders.filter(record => record.status !== 'cancelled' || reminders.every(item => item.status === 'cancelled'))
   return <section className="appointment-reminder-panel">
@@ -87,7 +87,8 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
 export function MissingReminderEmailNotice({ labels, onReview }: { labels: Labels; onReview: () => void }) {
   const repositories = useRepositories()
   if (!labels.supportsAppointmentReminders || !canUseFeature('email_reminders', { mode: repositories.reminderSettings.entitlementMode }) || !repositories.reminderSettings.emailEnabled) return null
-  const missing = repositories.prestations.filter(prestation => prestation.status === labels.scheduledStatus && parseAppointmentDate(prestation.date)?.getTime()! > DEMO_NOW.getTime() && !isValidReminderEmail(repositories.accounts.find(account => account.id === prestation.accountId)?.email))
+  const now = demoToday()
+  const missing = repositories.prestations.filter(prestation => prestation.status === labels.scheduledStatus && parseAppointmentDate(prestation.date)?.getTime()! > now.getTime() && !isValidReminderEmail(repositories.accounts.find(account => account.id === prestation.accountId)?.email))
   if (!missing.length) return null
   return <button className="dashboard-reminder-warning" type="button" onClick={onReview}><AlertCircle size={17}/><span><b>{missing.length} {missing.length === 1 ? 'cita próxima no tiene' : 'citas próximas no tienen'} email para recordatorio</b><small>Revisa los datos de contacto antes de la cita.</small></span></button>
 }
