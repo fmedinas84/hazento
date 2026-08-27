@@ -182,6 +182,7 @@ export function useRepositories() {
       repositoryStatus: store.repositoryStatus,
       repositoryError: store.repositoryError,
       retryRepository: store.retryRepository,
+      signOut: store.signOut,
       profile: store.profile,
       workspace: store.workspace,
       accounts: store.accounts,

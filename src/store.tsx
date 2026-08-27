@@ -104,6 +104,7 @@ export type DataStore = DataState & {
   repositoryStatus: 'loading' | 'ready' | 'error'
   repositoryError: string | null
   retryRepository: () => void
+  signOut: () => Promise<void>
   updateProfile: (changes: Partial<ProfileSettings>) => Promise<void>
   updateWorkspace: (changes: Partial<WorkspaceSettings>) => Promise<void>
   addAccount: (record: NewAccountRecord) => Promise<Account>
@@ -282,6 +283,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     repositoryStatus,
     repositoryError,
     retryRepository: () => setLoadAttempt(value => value + 1),
+    async signOut() {},
     async updateProfile(changes) {
       setState(current => ({ ...current, profile: { ...current.profile, ...changes } }))
     },
