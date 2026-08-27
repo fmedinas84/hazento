@@ -8,6 +8,7 @@
     "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.api.json && vite build --config vite.config.ts",
     "typecheck:api": "tsc --noEmit -p tsconfig.api.json",
     "test:demo-migration": "node --experimental-strip-types scripts/validate-demo-id-migration.mjs",
+    "test:planning-dates": "node --experimental-strip-types scripts/validate-planning-dates.mjs",
     "test:supabase-repository": "node --env-file=.env.local scripts/validate-supabase-repository-e2e.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },

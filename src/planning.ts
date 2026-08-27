@@ -32,7 +32,9 @@ export function parsePlanningDate(value?: string): number {
   if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12).getTime()
   const iso = Date.parse(value)
   if (!Number.isNaN(iso)) return iso
-  const display = value.match(/^(\d{1,2}) ([a-záéíóú]{3})(?:\s*[·,]\s*(\d{1,2}):(\d{2}))?/i)
+  // Intl.DateTimeFormat('es-CL') may render short dates as either
+  // "27 ago · 16:00" or "27-ago · 16:00", depending on the runtime.
+  const display = value.match(/^(\d{1,2})[\s-]+([a-záéíóú]{3})(?:\s*[·,]\s*(\d{1,2}):(\d{2}))?/i)
   const month = display ? months[display[2].toLocaleLowerCase('es-CL')] : undefined
   if (!display || month === undefined) return 0
   return new Date(2026, month, Number(display[1]), Number(display[3] || 12), Number(display[4] || 0)).getTime()
