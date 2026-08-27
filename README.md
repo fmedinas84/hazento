@@ -1,5 +1,9 @@
 # Hazento
 
+La preparación del modelo PostgreSQL y el plan de transición desde DemoStore están documentados en [docs/supabase-production-readiness.md](docs/supabase-production-readiness.md).
+
+La ejecución y validación sobre un proyecto Supabase de staging está documentada en [docs/supabase-staging-validation.md](docs/supabase-staging-validation.md).
+
 Prototipo funcional del frontend de Hazento para validar navegación, objetos y flujos principales antes de conectar datos de producción.
 
 ## Ejecutar localmente

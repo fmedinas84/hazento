@@ -4,14 +4,14 @@ export type Account360Source = {
   prestations: PrestationData[]
   activities: ActivityData[]
   payments: PaymentData[]
-  paymentAllocations: Array<{ paymentId: number; prestationId: number; amount: number }>
+  paymentAllocations: Array<{ paymentId: string; prestationId: string; amount: number }>
   opportunities: OpportunityData[]
   engagements: EngagementData[]
 }
 
 export type AccountTimelineEvent = {
   id: string
-  recordId: number
+  recordId: string
   type: 'prestation' | 'activity' | 'payment' | 'opportunity' | 'engagement'
   timestamp: number
   date: string
@@ -23,7 +23,7 @@ export type AccountTimelineEvent = {
 
 export type AccountNextEvent = {
   type: 'prestation' | 'activity'
-  recordId: number
+  recordId: string
   timestamp: number
   title: string
   date: string
@@ -62,10 +62,10 @@ export function formatAccountEventDate(timestamp: number) {
   return `${value('day')} ${month.charAt(0).toUpperCase()}${month.slice(1)} · ${value('hour')}:${value('minute')}`
 }
 
-export const getAccountPrestations = (source: Account360Source, accountId: number) => source.prestations.filter(prestation => prestation.accountId === accountId)
-export const getAccountPayments = (source: Account360Source, accountId: number) => source.payments.filter(payment => payment.accountId === accountId)
+export const getAccountPrestations = (source: Account360Source, accountId: string) => source.prestations.filter(prestation => prestation.accountId === accountId)
+export const getAccountPayments = (source: Account360Source, accountId: string) => source.payments.filter(payment => payment.accountId === accountId)
 
-export function getOutstandingAmountForPrestation(source: Account360Source, prestationId: number) {
+export function getOutstandingAmountForPrestation(source: Account360Source, prestationId: string) {
   const prestation = source.prestations.find(record => record.id === prestationId)
   if (!prestation || prestation.status === 'Cancelada') return 0
   const paidPaymentIds = new Set(source.payments.filter(payment => payment.status === 'Pagado').map(payment => payment.id))
@@ -75,23 +75,23 @@ export function getOutstandingAmountForPrestation(source: Account360Source, pres
   return Math.max(0, moneyValue(prestation.amount) - allocated)
 }
 
-export function getAccountWorkedAmount(source: Account360Source, accountId: number) {
+export function getAccountWorkedAmount(source: Account360Source, accountId: string) {
   return getAccountPrestations(source, accountId)
     .filter(prestation => prestation.status !== 'Cancelada')
     .reduce((sum, prestation) => sum + moneyValue(prestation.amount), 0)
 }
 
-export function getAccountAllocatedAmount(source: Account360Source, accountId: number) {
+export function getAccountAllocatedAmount(source: Account360Source, accountId: string) {
   return getAccountPrestations(source, accountId)
     .filter(prestation => prestation.status !== 'Cancelada')
     .reduce((sum, prestation) => sum + moneyValue(prestation.amount) - getOutstandingAmountForPrestation(source, prestation.id), 0)
 }
 
-export function getAccountOutstandingAmount(source: Account360Source, accountId: number) {
+export function getAccountOutstandingAmount(source: Account360Source, accountId: string) {
   return Math.max(0, getAccountWorkedAmount(source, accountId) - getAccountAllocatedAmount(source, accountId))
 }
 
-export function getNextAccountEvent(source: Account360Source, accountId: number): AccountNextEvent | undefined {
+export function getNextAccountEvent(source: Account360Source, accountId: string): AccountNextEvent | undefined {
   const prestations: AccountNextEvent[] = getAccountPrestations(source, accountId)
     .filter(prestation => prestation.status === 'Programada')
     .map(prestation => ({ type: 'prestation', recordId: prestation.id, timestamp: displayDateTimestamp(prestation.date), title: prestation.name, date: prestation.date }))
@@ -101,7 +101,7 @@ export function getNextAccountEvent(source: Account360Source, accountId: number)
   return [...prestations, ...activities].filter(event => event.timestamp >= DEMO_NOW).sort((left, right) => left.timestamp - right.timestamp)[0]
 }
 
-export function getAccountTimeline(source: Account360Source, accountId: number): AccountTimelineEvent[] {
+export function getAccountTimeline(source: Account360Source, accountId: string): AccountTimelineEvent[] {
   const prestations: AccountTimelineEvent[] = getAccountPrestations(source, accountId).map(prestation => ({
     id: `prestation-${prestation.id}`, recordId: prestation.id, type: 'prestation', timestamp: displayDateTimestamp(prestation.date), date: prestation.date,
     title: prestation.name, detail: prestation.origin, status: prestation.status, amount: prestation.amount,

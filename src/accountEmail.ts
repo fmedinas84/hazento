@@ -1,7 +1,7 @@
 import type { AccountData } from './data'
 
 export type EmailAccount = {
-  id: number
+  id: string
   email?: string
 }
 
@@ -13,7 +13,7 @@ export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test
 
 // The demo has one active workspace, so this collection represents the future
 // workspace_id + normalized email uniqueness boundary in PostgreSQL.
-export function findAccountByEmail<T extends EmailAccount>(accounts: T[], email: string, excludeId?: number) {
+export function findAccountByEmail<T extends EmailAccount>(accounts: T[], email: string, excludeId?: string) {
   const normalized = normalizeEmail(email)
   if (!normalized) return undefined
   return accounts.find(account => account.id !== excludeId && normalizeEmail(account.email || '') === normalized)
@@ -27,7 +27,7 @@ export function prepareAccountCreate(accounts: AccountData[], record: NewAccount
   const account: AccountData = {
     ...record,
     email: normalizedEmail || undefined,
-    id: accounts.reduce((max, account) => Math.max(max, account.id), 0) + 1,
+    id: crypto.randomUUID(),
     initials: names.slice(0, 2).map(name => name[0]?.toUpperCase()).join(''),
     color: colors[accounts.length % colors.length],
   }

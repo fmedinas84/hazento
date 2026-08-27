@@ -22,7 +22,7 @@ export function documentSummary(document: DocumentData, payments: PaymentData[],
   return { total: document.totalAmount, paid, adjusted, outstanding, status }
 }
 
-export function paymentAvailable(payment: PaymentData, allocations: DocumentPaymentAllocationData[], exceptAllocationId?: number) {
+export function paymentAvailable(payment: PaymentData, allocations: DocumentPaymentAllocationData[], exceptAllocationId?: string) {
   const allocated = allocations
     .filter(allocation => allocation.paymentId === payment.id && allocation.id !== exceptAllocationId)
     .reduce((sum, allocation) => sum + allocation.amount, 0)
@@ -36,7 +36,7 @@ export function validateAllocation(args: {
   payments: PaymentData[]
   allocations: DocumentPaymentAllocationData[]
   adjustments: DocumentAdjustmentData[]
-  exceptAllocationId?: number
+  exceptAllocationId?: string
 }) {
   const { payment, document, amount, payments, allocations, adjustments, exceptAllocationId } = args
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('El monto asignado debe ser mayor que cero.')
@@ -48,7 +48,7 @@ export function validateAllocation(args: {
   if (amount > summary.outstanding) throw new Error('La asignación supera el saldo pendiente de la boleta.')
 }
 
-export function validateAdjustment(document: DocumentData, amount: number, payments: PaymentData[], allocations: DocumentPaymentAllocationData[], adjustments: DocumentAdjustmentData[], exceptAdjustmentId?: number) {
+export function validateAdjustment(document: DocumentData, amount: number, payments: PaymentData[], allocations: DocumentPaymentAllocationData[], adjustments: DocumentAdjustmentData[], exceptAdjustmentId?: string) {
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('El ajuste debe ser mayor que cero.')
   const summary = documentSummary(document, payments, allocations, adjustments.filter(item => item.id !== exceptAdjustmentId))
   if (amount > summary.outstanding) throw new Error('El ajuste supera el saldo pendiente de la boleta.')

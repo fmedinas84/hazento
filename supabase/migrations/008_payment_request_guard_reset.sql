@@ -7,8 +7,8 @@ create or replace function public.settle_payment_request(
   p_waiver_reason text default null
 ) returns table(payment_id uuid, successor_request_id uuid)
 language plpgsql
-security invoker
-set search_path = public, pg_temp
+security definer
+set search_path = ''
 as $$
 declare
   v_request public.payment_requests%rowtype;
@@ -26,7 +26,6 @@ begin
   v_outstanding := v_request.amount - v_request.waived_amount - v_paid;
   if p_received_amount > v_outstanding then raise exception 'El pago supera el saldo de la solicitud'; end if;
   if p_received_amount < v_outstanding and p_difference_action not in ('transfer', 'waive') then raise exception 'Debes trasladar o condonar la diferencia'; end if;
-  perform set_config('hazento.settling_payment_request', 'on', true);
   insert into public.payments(workspace_id, account_id, amount, currency_code, payment_date, payment_method, status, reference)
   values (v_request.workspace_id, v_request.account_id, p_received_amount, v_request.currency_code, now(), nullif(btrim(p_payment_method), ''), 'paid', 'Solicitud ' || v_request.id)
   returning id into v_payment_id;
@@ -45,7 +44,6 @@ begin
       waiver_reason = btrim(p_waiver_reason), waived_at = now(), waived_by = auth.uid(), updated_at = now()
     where id = v_request.id;
   end if;
-  perform set_config('hazento.settling_payment_request', 'off', true);
   return query select v_payment_id, v_successor;
 end;
 $$;

@@ -13,11 +13,12 @@ import {
 import { formatMoney, parseMoney, useRepositories } from './repositories'
 import { OrganizationSelector } from './OrganizationSelector'
 import { verticalizeEngagementDetail } from './verticalText'
+import { useRepositoryAction } from './repositoryState'
 
 type Labels = typeof verticalLabels[Vertical]
 type AccountPage = 'accounts' | 'account' | 'agenda' | 'work' | 'engagement' | 'prestations' | 'opportunities' | 'opportunity' | 'activities' | 'payments'
-type Navigate = (page: AccountPage, query?: Record<string, string | number>) => void
-type CreateAction = (type?: string, accountId?: number) => void
+type Navigate = (page: AccountPage, query?: Record<string, string>) => void
+type CreateAction = (type?: string, accountId?: string) => void
 type Tab = 'Resumen' | 'Prestaciones' | 'Oportunidades' | 'Actividades' | 'Pagos' | 'Datos'
 
 const cls = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(' ')
@@ -54,14 +55,15 @@ function TimelineRow({ event, labels, onOpen }: { event: AccountTimelineEvent; l
 
 export function Account360View({ labels, go, onCreate }: { labels: Labels; go: Navigate; onCreate: CreateAction }) {
   const repository = useRepositories()
-  const requestedId = Number(new URLSearchParams(window.location.search).get('id'))
+  const mutation = useRepositoryAction()
+  const requestedId = new URLSearchParams(window.location.search).get('id')
   const account = repository.accounts.find(record => record.id === requestedId) || repository.accounts[0]
   const [tab, setTab] = useState<Tab>('Resumen')
   const [editing, setEditing] = useState(false)
   const [showMore, setShowMore] = useState(false)
-  const [organizationId, setOrganizationId] = useState<number | undefined>(account?.organizationId)
+  const [organizationId, setOrganizationId] = useState<string | undefined>(account?.organizationId)
 
-  const accountId = account?.id || 0
+  const accountId = account?.id || ''
   const prestations = repository.accountRepository.getPrestations(accountId)
   const payments = repository.accountRepository.getPayments(accountId)
   const opportunities = repository.opportunities.filter(record => record.accountId === accountId)
@@ -96,22 +98,22 @@ export function Account360View({ labels, go, onCreate }: { labels: Labels; go: N
     if (event.type === 'payment') setTab('Pagos')
   }
   const create = (type: string) => onCreate(type, account.id)
-  const archive = () => {
+  const archive = async () => {
     if (window.confirm(`¿Archivar a ${account.name}? Su historial se conservará.`)) {
-      repository.accountRepository.archive(account.id)
+      await mutation.run(() => repository.accountRepository.archive(account.id))
       go('accounts')
     }
   }
-  const saveAccount = (event: React.FormEvent<HTMLFormElement>) => {
+  const saveAccount = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const value = Object.fromEntries(new FormData(event.currentTarget).entries())
-    repository.accountRepository.update(account.id, {
+    await mutation.run(() => repository.accountRepository.update(account.id, {
       name: String(value.name || '').trim(), initials: initialsFor(String(value.name || '')),
       displayName: String(value.name || '').trim(), type: 'Persona', status: String(value.status), rut: String(value.rut || ''),
       organizationId, role: String(value.role || '').trim() || undefined, email: String(value.email || '').trim().toLowerCase(),
       phone: String(value.phone || ''), address: String(value.address || ''), city: String(value.city || ''),
       commune: String(value.commune || ''), notes: String(value.notes || ''),
-    })
+    }))
     setEditing(false)
   }
   const tabs: Array<{ id: Tab; label: string }> = [
@@ -168,6 +170,6 @@ export function Account360View({ labels, go, onCreate }: { labels: Labels; go: N
 
     {tab === 'Pagos' && <div className="account360-stack"><section className="account360-payment-summary"><article className="card"><span>Total trabajado</span><b>{formatMoney(worked)}</b></article><article className="card"><span>Cobrado</span><b>{formatMoney(collected)}</b></article><article className="card"><span>Pendiente</span><b>{outstanding ? formatMoney(outstanding) : 'Al día'}</b></article></section><section className="card account360-section"><div className="card-heading"><div><span className="section-kicker">Cobros</span><h2>Historial de pagos</h2></div></div>{payments.length ? payments.map(payment => { const allocations = repository.paymentAllocations.filter(item => item.paymentId === payment.id); return <div className="account360-record static" key={payment.id}><CreditCard size={17}/><span><b>{payment.date} · {payment.method}</b><small>{allocations.length ? allocations.map(item => prestations.find(record => record.id === item.prestationId)?.name).filter(Boolean).join(', ') : 'Registrado desde una solicitud de pago'}</small></span><strong>{payment.amount}</strong><Badge>{payment.status}</Badge></div> }) : <BlankState title="No hay pagos registrados" body="Los pagos aparecerán aquí cuando registres un cobro desde una solicitud de pago."/>}</section></div>}
 
-    {tab === 'Datos' && <div className="account360-layout account360-data"><main><section className="card account360-section"><div className="card-heading"><div><span className="section-kicker">Información de la persona</span><h2>Datos de {account.name}</h2></div>{!editing && <button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar</button>}</div>{editing ? <form className="account360-form" onSubmit={saveAccount}><label><span>Nombre *</span><input name="name" required defaultValue={account.name}/></label><label><span>Estado</span><select name="status" defaultValue={account.status}><option>Prospecto</option><option>Activo</option><option>Inactivo</option></select></label><label><span>RUT</span><input name="rut" defaultValue={account.rut}/></label><label><span>Email</span><input name="email" type="email" defaultValue={account.email}/></label><label><span>Teléfono</span><input name="phone" defaultValue={account.phone}/></label><OrganizationSelector organizations={repository.organizations} labels={labels} selectedId={organizationId} onSelect={record => setOrganizationId(record?.id)} onCreate={repository.organizationRepository.create}/><label><span>Cargo / Rol</span><input name="role" defaultValue={account.role} disabled={!organizationId}/></label><label><span>Dirección</span><input name="address" defaultValue={account.address}/></label><label><span>Ciudad</span><input name="city" defaultValue={account.city}/></label><label><span>Comuna</span><input name="commune" defaultValue={account.commune}/></label><label className="wide"><span>Notas</span><textarea name="notes" rows={4} defaultValue={account.notes}/></label><footer><button type="button" className="ghost-btn" onClick={() => { setEditing(false); setOrganizationId(account.organizationId) }}>Cancelar</button><button className="primary-btn">Guardar cambios</button></footer></form> : <div className="account360-data-grid"><p><span>Relación</span><b>Persona</b></p><p><span>Estado</span><Badge>{account.status}</Badge></p><p><span>{labels.organizationRelationship}</span><b>{organization?.name || 'No asociada'}</b></p><p><span>Cargo / Rol</span><b>{account.role || '—'}</b></p><p><span>RUT</span><b>{account.rut || '—'}</b></p><p><span>Email</span><b>{account.email || '—'}</b></p><p><span>Teléfono</span><b>{account.phone || '—'}</b></p><p><span>Dirección</span><b>{[account.address, account.commune, account.city].filter(Boolean).join(', ') || '—'}</b></p>{account.notes && <p className="wide"><span>Notas</span><b>{account.notes}</b></p>}</div>}</section></main><aside><section className="card account360-section account360-organization-detail"><Building2 size={20}/><div><span className="section-kicker">{labels.organizationRelationship}</span><h2>{organization?.name || 'No asociada'}</h2><p>{account.role || (organization ? 'Sin cargo registrado' : `Asocia una ${labels.organization.toLowerCase()} desde la edición de esta persona.`)}</p></div>{organization && <button className="secondary-btn" onClick={() => go('accounts', { organization: organization.id })}>Ver {labels.organization.toLowerCase()}</button>}</section><section className="card account360-location"><MapPin size={18}/><div><span>Ubicación</span><b>{[account.address, account.commune, account.city].filter(Boolean).join(', ') || 'Sin dirección registrada'}</b></div></section></aside></div>}
+    {tab === 'Datos' && <div className="account360-layout account360-data"><main><section className="card account360-section"><div className="card-heading"><div><span className="section-kicker">Información de la persona</span><h2>Datos de {account.name}</h2></div>{!editing && <button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar</button>}</div>{editing ? <form className="account360-form" onSubmit={saveAccount}><label><span>Nombre *</span><input name="name" required defaultValue={account.name}/></label><label><span>Estado</span><select name="status" defaultValue={account.status}><option>Prospecto</option><option>Activo</option><option>Inactivo</option></select></label><label><span>RUT</span><input name="rut" defaultValue={account.rut}/></label><label><span>Email</span><input name="email" type="email" defaultValue={account.email}/></label><label><span>Teléfono</span><input name="phone" defaultValue={account.phone}/></label><OrganizationSelector organizations={repository.organizations} labels={labels} selectedId={organizationId} onSelect={record => setOrganizationId(record?.id)} onCreate={repository.organizationRepository.create}/><label><span>Cargo / Rol</span><input name="role" defaultValue={account.role} disabled={!organizationId}/></label><label><span>Dirección</span><input name="address" defaultValue={account.address}/></label><label><span>Ciudad</span><input name="city" defaultValue={account.city}/></label><label><span>Comuna</span><input name="commune" defaultValue={account.commune}/></label><label className="wide"><span>Notas</span><textarea name="notes" rows={4} defaultValue={account.notes}/></label>{mutation.error && <p className="form-error wide">No pudimos guardar los cambios. Inténtalo nuevamente.</p>}<footer><button type="button" className="ghost-btn" disabled={mutation.loading} onClick={() => { setEditing(false); setOrganizationId(account.organizationId) }}>Cancelar</button><button className="primary-btn" disabled={mutation.loading}>{mutation.loading ? 'Guardando...' : 'Guardar cambios'}</button></footer></form> : <div className="account360-data-grid"><p><span>Relación</span><b>Persona</b></p><p><span>Estado</span><Badge>{account.status}</Badge></p><p><span>{labels.organizationRelationship}</span><b>{organization?.name || 'No asociada'}</b></p><p><span>Cargo / Rol</span><b>{account.role || '—'}</b></p><p><span>RUT</span><b>{account.rut || '—'}</b></p><p><span>Email</span><b>{account.email || '—'}</b></p><p><span>Teléfono</span><b>{account.phone || '—'}</b></p><p><span>Dirección</span><b>{[account.address, account.commune, account.city].filter(Boolean).join(', ') || '—'}</b></p>{account.notes && <p className="wide"><span>Notas</span><b>{account.notes}</b></p>}</div>}</section></main><aside><section className="card account360-section account360-organization-detail"><Building2 size={20}/><div><span className="section-kicker">{labels.organizationRelationship}</span><h2>{organization?.name || 'No asociada'}</h2><p>{account.role || (organization ? 'Sin cargo registrado' : `Asocia una ${labels.organization.toLowerCase()} desde la edición de esta persona.`)}</p></div>{organization && <button className="secondary-btn" onClick={() => go('accounts', { organization: organization.id })}>Ver {labels.organization.toLowerCase()}</button>}</section><section className="card account360-location"><MapPin size={18}/><div><span>Ubicación</span><b>{[account.address, account.commune, account.city].filter(Boolean).join(', ') || 'Sin dirección registrada'}</b></div></section></aside></div>}
   </div>
 }

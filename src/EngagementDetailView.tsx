@@ -9,17 +9,17 @@ import { PaymentRequestCreateDialog, PaymentRequestDetailDialog } from './Paymen
 
 type Labels = typeof verticalLabels[Vertical]
 type Page = 'work' | 'account' | 'agenda' | 'prestations'
-type Navigate = (page: Page, query?: Record<string, string | number>) => void
+type Navigate = (page: Page, query?: Record<string, string>) => void
 const formatDate = (value?: string) => value ? new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Santiago' }).format(new Date(parsePlanningDate(value))).replace('.', '') : 'Sin definir'
 function Badge({ children }: { children: React.ReactNode }) { return <span className={`badge badge-${String(children).toLowerCase().replaceAll(' ', '-')}`}>{children}</span> }
 function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="modal-backdrop" onMouseDown={onClose}><section className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={event => event.stopPropagation()}><header><h2>{title}</h2><button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={18}/></button></header>{children}</section></div> }
 
-export function EngagementDetailView({ labels, go, onCreate }: { labels: Labels; go: Navigate; onCreate: (type?: string, accountId?: number, engagementId?: number) => void }) {
+export function EngagementDetailView({ labels, go, onCreate }: { labels: Labels; go: Navigate; onCreate: (type?: string, accountId?: string, engagementId?: string) => void }) {
   const repositories = useRepositories()
   const [editing, setEditing] = useState(false)
   const [requestingPayment, setRequestingPayment] = useState(false)
-  const [selectedRequest, setSelectedRequest] = useState<number | null>(null)
-  const id = Number(new URLSearchParams(window.location.search).get('id')) || repositories.engagements[0]?.id
+  const [selectedRequest, setSelectedRequest] = useState<string | null>(null)
+  const id = new URLSearchParams(window.location.search).get('id') || repositories.engagements[0]?.id
   const engagement = repositories.engagements.find(record => record.id === id)
   if (!engagement) return <div className="planning-empty card"><Clock3 size={22}/><h3>Sin {labels.engagements.toLowerCase()}</h3><button className="secondary-btn" onClick={() => go('work')}>Volver</button></div>
   const related = repositories.prestations.filter(record => record.engagementId === engagement.id)
@@ -30,7 +30,7 @@ export function EngagementDetailView({ labels, go, onCreate }: { labels: Labels;
   const milestones = related.slice().sort((left, right) => parsePlanningDate(left.date) - parsePlanningDate(right.date))
   const requests = repositories.paymentRequestRepository.forEngagement(engagement.id)
   const totals = requests.reduce((result, request) => { const summary = repositories.paymentRequestRepository.summary(request.id); return { requested: result.requested + request.amount, paid: result.paid + (summary?.paid || 0), outstanding: result.outstanding + (summary?.outstanding || 0) } }, { requested: 0, paid: 0, outstanding: 0 })
-  const save = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()); repositories.updateEngagement(engagement.id, { name: String(values.name || engagement.name).trim(), amount: String(values.amount || engagement.amount).trim(), status: String(values.status || engagement.status), startDate: String(values.startDate || '') || undefined, endDate: String(values.endDate || '') || undefined }); setEditing(false) }
+  const save = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()); await repositories.updateEngagement(engagement.id, { name: String(values.name || engagement.name).trim(), amount: String(values.amount || engagement.amount).trim(), status: String(values.status || engagement.status), startDate: String(values.startDate || '') || undefined, endDate: String(values.endDate || '') || undefined }); setEditing(false) }
   return <>
     <button className="back-btn" onClick={() => go('work')}><ChevronLeft size={17}/>Volver a {labels.engagements.toLowerCase()}</button>
     <section className="detail-hero card"><div><span className="section-kicker">{labels.engagement} · {engagement.status}</span><h1>{engagement.name}</h1><button className="account-name-link" onClick={() => engagement.accountId && go('account', { id: engagement.accountId })}>{engagement.account}</button>{organization && <small className="engagement-organization">{labels.organization}: {organization.name}{person?.role ? ` · ${person.role}` : ''}</small>}</div><div className="hero-actions"><button className="secondary-btn" onClick={() => setRequestingPayment(true)}>Generar solicitud de pago</button><button className="secondary-btn" onClick={() => setEditing(true)}><Pencil size={15}/>Editar {labels.engagement.toLowerCase()}</button><button className="primary-btn" onClick={() => onCreate(labels.createPrestation, engagement.accountId, engagement.id)}><Plus size={16}/>{labels.createPrestation}</button></div></section>

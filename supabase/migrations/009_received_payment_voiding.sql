@@ -34,7 +34,7 @@ language plpgsql
 set search_path = pg_catalog, public
 as $$
 begin
-  if current_setting('hazento.voiding_payment', true) = 'on' then
+  if current_user = 'postgres' then
     return case when tg_op = 'DELETE' then old else new end;
   end if;
   if old.status in ('paid', 'voided') then
@@ -57,8 +57,8 @@ create or replace function public.void_received_payment(
   p_reason text
 ) returns void
 language plpgsql
-security invoker
-set search_path = public, pg_temp
+security definer
+set search_path = ''
 as $$
 declare
   v_payment public.payments%rowtype;
@@ -76,9 +76,6 @@ begin
   if v_payment.status <> 'paid' then
     raise exception 'Solo puedes anular un pago recibido vigente';
   end if;
-
-  perform set_config('hazento.voiding_payment', 'on', true);
-  perform set_config('hazento.settling_payment_request', 'on', true);
 
   update public.payments
   set status = 'voided', voided_at = now(), voided_by = auth.uid(), void_reason = btrim(p_reason), updated_at = now()
@@ -101,14 +98,14 @@ begin
     end if;
   end loop;
 
-  perform set_config('hazento.voiding_payment', 'off', true);
-  perform set_config('hazento.settling_payment_request', 'off', true);
 end;
 $$;
 
 revoke all on function public.guard_received_payment_immutability() from public, anon, authenticated;
 revoke all on function public.void_received_payment(uuid, text) from public, anon;
 grant execute on function public.void_received_payment(uuid, text) to authenticated;
+revoke all on public.payments from authenticated;
+grant select on public.payments to authenticated;
 
 comment on function public.void_received_payment(uuid, text) is
   'Atomically voids an immutable received payment and restores related payment request balances.';
