@@ -24,7 +24,7 @@ export type TimelineRow = {
   progress: number
 }
 
-const months: Record<string, number> = { Ene: 0, Feb: 1, Mar: 2, Abr: 3, May: 4, Jun: 5, Jul: 6, Ago: 7, Sep: 8, Oct: 9, Nov: 10, Dic: 11 }
+const months: Record<string, number> = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11 }
 
 export function parsePlanningDate(value?: string): number {
   if (!value) return 0
@@ -32,9 +32,10 @@ export function parsePlanningDate(value?: string): number {
   if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 12).getTime()
   const iso = Date.parse(value)
   if (!Number.isNaN(iso)) return iso
-  const display = value.match(/^(\d{1,2}) ([A-ZÁÉÍÓÚ][a-záéíóú]{2})(?:\s*[·,]\s*(\d{1,2}):(\d{2}))?/)
-  if (!display || months[display[2]] === undefined) return 0
-  return new Date(2026, months[display[2]], Number(display[1]), Number(display[3] || 12), Number(display[4] || 0)).getTime()
+  const display = value.match(/^(\d{1,2}) ([a-záéíóú]{3})(?:\s*[·,]\s*(\d{1,2}):(\d{2}))?/i)
+  const month = display ? months[display[2].toLocaleLowerCase('es-CL')] : undefined
+  if (!display || month === undefined) return 0
+  return new Date(2026, month, Number(display[1]), Number(display[3] || 12), Number(display[4] || 0)).getTime()
 }
 
 export function activityCalendarTimestamp(activity: ActivityData) {
