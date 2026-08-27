@@ -256,7 +256,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true
     setRepositoryStatus('loading'); setRepositoryError(null)
-    Promise.resolve().then(() => {
+    const previewDelay = import.meta.env.DEV && new URLSearchParams(window.location.search).has('loading-preview') ? 4000 : 0
+    new Promise(resolve => window.setTimeout(resolve, previewDelay)).then(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (!saved) return migrateDemoState(seedState)

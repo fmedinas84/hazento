@@ -137,7 +137,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async (activeUser: User) => {
     if (!supabase) { setStatus('error'); setError('Supabase staging no está configurado.'); return }
-    setStatus('loading'); setError(null)
+    setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null)
     try {
       const { data: boot, error: bootError } = await supabase.rpc('bootstrap_user_workspace', { p_workspace_name: 'Mi negocio', p_vertical_type: 'health', p_first_name: '', p_last_name: '' })
       if (bootError) throw bootError
@@ -172,7 +172,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     } catch (cause) { setError(friendlyError(cause)); setStatus('error') }
   }, [])
 
-  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } setUser(session?.user || null); if (session?.user) queueMicrotask(() => void load(session.user)); else { setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
+  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } if (session?.user) { setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(session.user); queueMicrotask(() => void load(session.user)) } else { setUser(null); setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
 
   const requireContext = () => { if (!supabase || !workspaceId) throw new Error('No existe un workspace activo.'); return { client: supabase, workspaceId } }
   const refresh = async () => { if (user) await load(user) }
@@ -206,8 +206,6 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     async updateService(id,changes){const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({name:changes.name,description:changes.description,default_duration_minutes:changes.duration?parseInt(changes.duration):undefined,default_price:changes.price?parseMoney(changes.price):undefined,active:changes.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async toggleService(id){const current=state.services.find(item=>item.id===id);if(!current)return;const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({active:!current.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async resetDemo(){throw new Error('Restaurar datos demo no está disponible en modo Supabase.')},
   }), [state,status,error,user,workspaceId,load])
 
-  if (!user || passwordRecovery) return <AuthPanel recoveryMode={passwordRecovery} onReady={setUser} onRecoveryComplete={() => setPasswordRecovery(false)}/>
-  if (status === 'loading') return <main className="repository-state"><div className="card"><h2>Cargando tu espacio de trabajo...</h2><p>Estamos recuperando tus datos de forma segura.</p></div></main>
-  if (status === 'error') return <main className="repository-state"><div className="card"><h2>No pudimos cargar Hazento</h2><p>{error}</p><button className="primary-btn" onClick={() => void load(user)}>Reintentar</button><button className="secondary-btn" onClick={() => void supabase?.auth.signOut()}>Cerrar sesión</button></div></main>
+  if (!user || passwordRecovery) return <AuthPanel recoveryMode={passwordRecovery} onReady={nextUser => { setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(nextUser) }} onRecoveryComplete={() => setPasswordRecovery(false)}/>
   return <DataStoreContext.Provider value={value}>{children}</DataStoreContext.Provider>
 }
