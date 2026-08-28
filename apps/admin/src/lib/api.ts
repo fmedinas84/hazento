@@ -7,12 +7,13 @@ export class AdminApiError extends Error {
   }
 }
 
-export async function adminRequest<K extends keyof AdminApi>(resource: K): Promise<AdminApi[K]> {
+export async function adminRequest<K extends keyof AdminApi>(resource: K, signal?: AbortSignal): Promise<AdminApi[K]> {
   const session = await supabase?.auth.getSession()
   const token = session?.data.session?.access_token
   if (!token) throw new AdminApiError('Tu sesión expiró. Vuelve a iniciar sesión.', 401)
   const response = await fetch(`/api/admin?resource=${resource}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   })
   const body = (await response.json()) as { data?: AdminApi[K]; message?: string }
   if (!response.ok || body.data === undefined) {
@@ -21,13 +22,14 @@ export async function adminRequest<K extends keyof AdminApi>(resource: K): Promi
   return body.data
 }
 
-export async function getUserDetail(userId: string, workspaceId: string): Promise<UserDetail> {
+export async function getUserDetail(userId: string, workspaceId: string, signal?: AbortSignal): Promise<UserDetail> {
   const session = await supabase?.auth.getSession()
   const token = session?.data.session?.access_token
   if (!token) throw new AdminApiError('Tu sesión expiró. Vuelve a iniciar sesión.', 401)
   const query = new URLSearchParams({ resource: 'user', userId, workspaceId })
   const response = await fetch(`/api/admin?${query.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
+    signal,
   })
   const body = (await response.json()) as { data?: UserDetail; message?: string }
   if (!response.ok || !body.data) throw new AdminApiError(body.message ?? 'No pudimos cargar la ficha.', response.status)

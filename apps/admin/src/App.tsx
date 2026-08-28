@@ -2,10 +2,10 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, CheckCircle2, CreditCard, LayoutDashboard, LogOut, RefreshCw, Search, Settings, ShieldCheck, Users } from 'lucide-react'
 import { adminRequest, getUserDetail } from './lib/api'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
+import { ADMIN_STALE_TIME_MS, clearAdminResourceCache, useCachedAdminResource } from './lib/resource-cache'
 import type { AdminApi, AdminSession, DashboardData, SubscriptionSummary, SystemData, UserDetail, UserHealth, UserSummary } from '../shared/types'
 
 type Page = 'dashboard' | 'users' | 'subscriptions' | 'system'
-type AsyncState<T> = { status: 'loading' | 'error' | 'success'; data?: T; message?: string }
 
 const verticalNames: Record<string, string> = { health: 'Salud', creative: 'Diseñador', creator: 'Influencer', sessions: 'Profesor', other: 'Otras actividades' }
 const healthNames: Record<UserHealth, string> = { new: 'Nuevo', active: 'Activo', very_active: 'Muy activo', at_risk: 'En riesgo', inactive: 'Inactivo' }
@@ -51,15 +51,13 @@ function Login() {
 }
 
 function useResource<K extends keyof AdminApi>(resource: K, enabled = true) {
-  const [state, setState] = useState<AsyncState<AdminApi[K]>>({ status: 'loading' })
-  const load = useCallback(async () => {
-    if (!enabled) return
-    setState({ status: 'loading' })
-    try { setState({ status: 'success', data: await adminRequest(resource) }) }
-    catch (error) { setState({ status: 'error', message: error instanceof Error ? error.message : undefined }) }
-  }, [resource, enabled])
-  useEffect(() => { if (enabled) void load() }, [load, enabled])
-  return { ...state, retry: load }
+  const loader = useCallback((signal: AbortSignal) => adminRequest(resource, signal), [resource])
+  return useCachedAdminResource(resource, loader, ADMIN_STALE_TIME_MS[resource], enabled)
+}
+
+function BackgroundRefresh({ refreshing, message, retry }: { refreshing: boolean; message?: string; retry: () => void }) {
+  if (message) return <div className="inline-error" role="status">No pudimos actualizar los datos. <button className="link-button" onClick={retry}>Reintentar</button></div>
+  return refreshing ? <span className="sr-only" role="status">Actualizando información</span> : null
 }
 
 function KpiCard({ title, value, subtitle, meta }: { title: string; value: string | number; subtitle: string; meta?: string }) {
@@ -85,7 +83,7 @@ function DashboardPage({ navigate }: { navigate: (page: Page, filter?: Attention
   const maximumUsers = Math.max(1, ...data.evolution.map((item) => item.users))
   const activePercentage = k.usersTotal ? Math.round((k.active30 / k.usersTotal) * 100) : 0
   const issues = data.attention.filter((item) => item.count > 0)
-  return <div className="dashboard-stack">
+  return <div className="dashboard-stack"><BackgroundRefresh refreshing={state.refreshing} message={state.message} retry={state.retry} />
     <div className="kpi-grid dashboard-kpis">
       <KpiCard title="Usuarios totales" value={k.usersTotal} subtitle={`${k.usersThisMonth} nuevos este mes`} meta={comparison(k.usersThisMonth, k.usersPreviousComparable, data.period.previousMonth, data.period.previous)} />
       <KpiCard title="Workspaces Plus" value={k.plusTotal} subtitle={`${k.plusPercentage}% de ${k.workspacesTotal} workspaces`} meta={`${k.plusThisMonth} altas Plus este mes`} />
@@ -141,9 +139,9 @@ function UserList({ onOpen, attentionFilter }: { onOpen: (user: UserSummary) => 
 function Badge({ value }: { value: string }) { return <span className={`badge badge-${value}`}>{healthNames[value as UserHealth] ?? value.toUpperCase()}</span> }
 
 function UserDetailPanel({ user, close }: { user: UserSummary; close: () => void }) {
-  const [state, setState] = useState<AsyncState<UserDetail>>({ status: 'loading' })
-  const load = useCallback(async () => { setState({ status: 'loading' }); try { setState({ status: 'success', data: await getUserDetail(user.userId, user.workspaceId) }) } catch (error) { setState({ status: 'error', message: error instanceof Error ? error.message : undefined }) } }, [user])
-  useEffect(() => { void load() }, [load])
+  const loader = useCallback((signal: AbortSignal) => getUserDetail(user.userId, user.workspaceId, signal), [user.userId, user.workspaceId])
+  const state = useCachedAdminResource(`user-detail:${user.userId}:${user.workspaceId}`, loader, ADMIN_STALE_TIME_MS.userDetail)
+  const load = state.retry
   return <div className="drawer-backdrop" role="presentation" onMouseDown={(e) => { if (e.currentTarget === e.target) close() }}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="user-detail-title"><button className="icon-button" onClick={close} aria-label="Cerrar ficha"><ArrowLeft /></button>{state.status === 'loading' && <Skeleton lines={10} />}{state.status === 'error' && <ErrorState message={state.message} retry={load} />}{state.data && <><span className="eyebrow">FICHA ADMINISTRATIVA</span><h2 id="user-detail-title">{state.data.name}</h2><p className="muted">{state.data.email}</p><div className="detail-grid"><Detail title="Cuenta" values={[['Estado', healthNames[state.data.health]], ['Alta', formatDate(state.data.registeredAt)], ['Último login', formatDate(state.data.lastSignInAt, true)], ['Última actividad', formatDate(state.data.lastActivityAt, true)]]} /><Detail title="Workspace" values={[['Nombre', state.data.workspaceName], ['Profesión', verticalNames[state.data.vertical] ?? state.data.vertical], ['Creado', formatDate(state.data.workspaceCreatedAt)]]} /><Detail title="Suscripción" values={[['Plan', state.data.subscription.plan.toUpperCase()], ['Estado', state.data.subscription.status], ['Inicio', formatDate(state.data.subscription.startedAt)], ['Próxima renovación', formatDate(state.data.subscription.nextPaymentAt)], ['Proveedor', state.data.subscription.provider ?? 'No asociado']]} /><Detail title="Uso" values={[['Clientes', String(state.data.clients)], ['Atenciones', String(state.data.prestations)], ['Oportunidades', String(state.data.opportunities)], ['Solicitudes', String(state.data.paymentRequests)], ['Pagos', String(state.data.payments)]]} /></div><section className="detail-card"><h3>Activación</h3><div className="milestones">{Object.entries({ 'Creó cuenta': state.data.milestones.accountCreatedAt, 'Primer cliente': state.data.milestones.firstClientAt, 'Primera atención': state.data.milestones.firstPrestationAt, 'Primer pago': state.data.milestones.firstPaymentAt }).map(([label, value]) => <div key={label}><i className={value ? 'done' : ''} /><span>{label}<small>{value ? formatDate(value) : 'Pendiente'}</small></span></div>)}</div></section></>}</aside></div>
 }
 
@@ -188,7 +186,10 @@ export default function App() {
   useEffect(() => {
     if (!supabase) { setAuthReady(true); return }
     void supabase.auth.getSession().then(({ data }) => { setHasSession(Boolean(data.session)); setAuthReady(true) })
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => setHasSession(Boolean(session)))
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') clearAdminResourceCache()
+      setHasSession(Boolean(session))
+    })
     return () => data.subscription.unsubscribe()
   }, [])
   if (!authReady) return <main className="login-page"><div className="login-card"><Skeleton lines={5} /></div></main>

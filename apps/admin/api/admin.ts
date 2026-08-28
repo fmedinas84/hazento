@@ -32,13 +32,32 @@ type SubscriptionRow = {
 }
 type EntityRow = { id: string; workspace_id: string; created_at: string; updated_at?: string | null; status?: string | null }
 type AuthUserRow = { id: string; email?: string; created_at: string; last_sign_in_at?: string }
+type UsageRow = {
+  user_id: string; workspace_id: string; first_name: string | null; last_name: string | null
+  workspace_name: string; vertical_type: string; member_created_at: string; workspace_created_at: string; workspace_updated_at: string
+  plan: string; subscription_status: string; provider: string | null; subscription_started_at: string | null
+  next_payment_at: string | null; subscription_created_at: string | null; subscription_updated_at: string | null
+  clients: number; prestations: number; opportunities: number; payment_requests: number; payments: number
+  clients_current: number; clients_previous: number; prestations_current: number; prestations_previous: number
+  recent_events: number; last_activity_at: string | null; first_client_at: string | null
+  first_prestation_at: string | null; first_payment_at: string | null; total_workspaces: number; failed_reminders: number
+}
+
+type RequestMetrics = {
+  resource: string
+  startedAt: number
+  authMs: number
+  authorizationMs: number
+  dataMs: number
+  queryCount: number
+}
 
 function createServiceClient(url: string, key: string) {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
 type ServiceClient = ReturnType<typeof createServiceClient>
-type Authorization = { error: 401 | 403 } | { client: ServiceClient; user: User; role: AdminRole }
+type Authorization = { error: 401 | 403; authMs: number; authorizationMs: number } | { client: ServiceClient; user: User; role: AdminRole; authMs: number; authorizationMs: number }
 
 const STATUS_THRESHOLDS = {
   newDays: 14,
@@ -379,18 +398,138 @@ function buildUserDetail(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, 
   }
 }
 
+function numberValue(value: number | string | null | undefined): number {
+  return Number(value ?? 0)
+}
+
+async function loadUsage(client: ServiceClient, now = new Date()) {
+  const periods = comparablePeriods(now)
+  const [usageResult, authUsers] = await Promise.all([
+    client.rpc('admin_workspace_usage', {
+      p_current_start: periods.currentStart.toISOString(),
+      p_previous_start: periods.previousStart.toISOString(),
+      p_previous_end: periods.previousEnd.toISOString(),
+      p_now: now.toISOString(),
+    }),
+    listAuthUsers(client),
+  ])
+  if (usageResult.error) throw usageResult.error
+  return { rows: (usageResult.data ?? []) as unknown as UsageRow[], authUsers, periods, now }
+}
+
+function usersFromUsage(input: Awaited<ReturnType<typeof loadUsage>>): UserSummary[] {
+  return input.rows.map((row) => {
+    const authUser = input.authUsers.find((item) => item.id === row.user_id)
+    const registeredAt = authUser?.created_at ?? row.member_created_at
+    return {
+      userId: row.user_id,
+      workspaceId: row.workspace_id,
+      name: [row.first_name, row.last_name].filter(Boolean).join(' ').trim() || 'Sin nombre',
+      email: authUser?.email ?? 'Email no disponible',
+      plan: row.plan === 'plus' && ['active', 'paused'].includes(row.subscription_status) ? 'plus' : 'free',
+      subscriptionStatus: row.subscription_status,
+      vertical: row.vertical_type,
+      clients: numberValue(row.clients),
+      prestations: numberValue(row.prestations),
+      opportunities: numberValue(row.opportunities),
+      paymentRequests: numberValue(row.payment_requests),
+      payments: numberValue(row.payments),
+      lastSignInAt: authUser?.last_sign_in_at ?? null,
+      lastActivityAt: row.last_activity_at,
+      registeredAt,
+      workspaceCreatedAt: row.workspace_created_at,
+      health: deriveHealth(registeredAt, row.last_activity_at, numberValue(row.recent_events), input.now),
+    }
+  })
+}
+
+function dashboardFromUsage(input: Awaited<ReturnType<typeof loadUsage>>, users: UserSummary[]): DashboardData {
+  const uniqueUsers = collapseUsers(users, input.now)
+  const current = (value: string) => within(value, input.periods.currentStart, input.now)
+  const previous = (value: string) => within(value, input.periods.previousStart, input.periods.previousEnd)
+  const plusRows = input.rows.filter((row) => row.plan === 'plus' && ['active', 'paused'].includes(row.subscription_status))
+  const registered = uniqueUsers.length
+  const funnelValues: Array<[string, number]> = [
+    ['Registrados', registered],
+    ['Crearon un cliente', uniqueUsers.filter((user) => user.clients > 0).length],
+    ['Crearon una atención', uniqueUsers.filter((user) => user.prestations > 0).length],
+    ['Registraron un pago', uniqueUsers.filter((user) => user.payments > 0).length],
+  ]
+  return {
+    generatedAt: input.now.toISOString(),
+    period: { current: input.periods.currentLabel, previous: input.periods.previousLabel, previousMonth: input.periods.previousMonth },
+    kpis: {
+      usersTotal: registered,
+      usersThisMonth: uniqueUsers.filter((user) => current(user.registeredAt)).length,
+      usersPreviousComparable: uniqueUsers.filter((user) => previous(user.registeredAt)).length,
+      plusTotal: new Set(plusRows.map((row) => row.workspace_id)).size,
+      plusThisMonth: plusRows.filter((row) => current(row.subscription_started_at ?? row.subscription_created_at ?? row.workspace_created_at)).length,
+      plusPreviousComparable: plusRows.filter((row) => previous(row.subscription_started_at ?? row.subscription_created_at ?? row.workspace_created_at)).length,
+      plusPercentage: numberValue(input.rows[0]?.total_workspaces) ? Math.round((new Set(plusRows.map((row) => row.workspace_id)).size / numberValue(input.rows[0]?.total_workspaces)) * 100) : 0,
+      workspacesTotal: numberValue(input.rows[0]?.total_workspaces),
+      prestationsThisMonth: input.rows.reduce((sum, row) => sum + numberValue(row.prestations_current), 0),
+      prestationsPreviousComparable: input.rows.reduce((sum, row) => sum + numberValue(row.prestations_previous), 0),
+      clientsThisMonth: input.rows.reduce((sum, row) => sum + numberValue(row.clients_current), 0),
+      clientsPreviousComparable: input.rows.reduce((sum, row) => sum + numberValue(row.clients_previous), 0),
+      active7: uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt, input.now) ?? Infinity) <= 7).length,
+      active30: uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt, input.now) ?? Infinity) <= 30).length,
+    },
+    evolution: recentMonthKeys(input.now, 6).map(({ key, label }) => ({ month: key, label, users: uniqueUsers.filter((user) => monthKey(user.registeredAt) === key).length })),
+    funnel: funnelValues.map(([label, value], index) => ({ label, value, percentage: registered ? Math.round((value / registered) * 100) : 0, stepConversion: index === 0 ? null : funnelValues[index - 1][1] ? Math.round((value / funnelValues[index - 1][1]) * 100) : 0 })),
+    attention: [
+      { key: 'no_clients', label: 'Sin primer cliente', count: uniqueUsers.filter((user) => user.clients === 0).length, target: 'users' },
+      { key: 'inactive', label: 'Sin actividad por más de 30 días', count: uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt ?? user.registeredAt, input.now) ?? 0) > 30).length, target: 'users' },
+      { key: 'payment_failed', label: 'Suscripción con pago fallido', count: input.rows.filter((row) => row.subscription_status === 'payment_failed').length, target: 'subscriptions' },
+      { key: 'reminder_failed', label: 'Recordatorios fallidos', count: numberValue(input.rows[0]?.failed_reminders), target: 'system' },
+    ],
+    recentUsers: [...uniqueUsers].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt)).slice(0, 5),
+  }
+}
+
+function subscriptionsFromUsage(input: Awaited<ReturnType<typeof loadUsage>>, users: UserSummary[]): SubscriptionSummary[] {
+  const ownerByWorkspace = new Map(users.map((user) => [user.workspaceId, user]))
+  return input.rows.filter((row, index, rows) => rows.findIndex((item) => item.workspace_id === row.workspace_id) === index).map((row) => {
+    const owner = ownerByWorkspace.get(row.workspace_id)
+    return {
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspace_name,
+      ownerName: owner?.name ?? 'Sin propietario visible',
+      ownerEmail: owner?.email ?? 'Email no disponible',
+      plan: row.plan === 'plus' && ['active', 'paused'].includes(row.subscription_status) ? 'plus' : 'free',
+      status: row.subscription_status,
+      createdAt: row.subscription_created_at ?? row.workspace_created_at,
+      provider: row.provider,
+      nextPaymentAt: row.next_payment_at,
+      updatedAt: row.subscription_updated_at ?? row.workspace_updated_at,
+    }
+  })
+}
+
+function userDetailFromUsage(row: UsageRow, user: UserSummary): UserDetail {
+  return {
+    ...user,
+    workspaceName: row.workspace_name,
+    subscription: { plan: user.plan, status: row.subscription_status, startedAt: row.subscription_started_at, nextPaymentAt: row.next_payment_at, provider: row.provider, updatedAt: row.subscription_updated_at },
+    milestones: { accountCreatedAt: user.registeredAt, firstClientAt: row.first_client_at, firstPrestationAt: row.first_prestation_at, firstPaymentAt: row.first_payment_at },
+  }
+}
+
 async function authorize(req: Request): Promise<Authorization> {
   const url = requiredEnv('SUPABASE_URL')
   const secret = process.env.SUPABASE_SECRET_KEY ?? requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
   const client = createServiceClient(url, secret)
   const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]
-  if (!token) return { error: 401 as const }
+  if (!token) return { error: 401 as const, authMs: 0, authorizationMs: 0 }
+  const authStarted = performance.now()
   const { data: identity, error } = await client.auth.getUser(token)
-  if (error || !identity.user) return { error: 401 as const }
+  const authMs = performance.now() - authStarted
+  if (error || !identity.user) return { error: 401 as const, authMs, authorizationMs: 0 }
+  const authorizationStarted = performance.now()
   const { data: admin, error: adminError } = await client.from('admin_users').select('role').eq('user_id', identity.user.id).maybeSingle()
+  const authorizationMs = performance.now() - authorizationStarted
   if (adminError) throw adminError
-  if (!admin) return { error: 403 as const }
-  return { client, user: identity.user, role: admin.role as AdminRole }
+  if (!admin) return { error: 403 as const, authMs, authorizationMs }
+  return { client, user: identity.user, role: admin.role as AdminRole, authMs, authorizationMs }
 }
 
 async function audit(client: ServiceClient, adminUserId: string, action: string, targetType?: string, targetId?: string) {
@@ -408,45 +547,67 @@ export default async function handler(req: Request, res: Response) {
   res.setHeader('Cache-Control', 'private, no-store')
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   if (req.method !== 'GET') return res.status(405).json({ message: 'Método no permitido.' })
+  const resource = single(req.query.resource) ?? 'session'
+  const metrics: RequestMetrics = { resource, startedAt: performance.now(), authMs: 0, authorizationMs: 0, dataMs: 0, queryCount: 0 }
+  const respond = (status: number, body: unknown) => {
+    const serialized = JSON.stringify(body)
+    const totalMs = performance.now() - metrics.startedAt
+    const payloadBytes = Buffer.byteLength(serialized)
+    res.setHeader('Server-Timing', `auth;dur=${metrics.authMs.toFixed(1)}, admin;dur=${metrics.authorizationMs.toFixed(1)}, data;dur=${metrics.dataMs.toFixed(1)}, total;dur=${totalMs.toFixed(1)}`)
+    res.setHeader('X-Admin-Query-Count', String(metrics.queryCount))
+    res.setHeader('X-Admin-Payload-Bytes', String(payloadBytes))
+    if (process.env.VERCEL_ENV !== 'production' || totalMs > 1000) console.info('Admin resource timing', { resource, totalMs: Math.round(totalMs), authMs: Math.round(metrics.authMs), authorizationMs: Math.round(metrics.authorizationMs), dataMs: Math.round(metrics.dataMs), queryCount: metrics.queryCount, payloadBytes })
+    return res.status(status).json(body)
+  }
   try {
     const authorization = await authorize(req)
+    metrics.authMs = authorization.authMs
+    metrics.authorizationMs = authorization.authorizationMs
+    metrics.queryCount = 2
     if ('error' in authorization) {
-      return res.status(authorization.error).json({ message: authorization.error === 401 ? 'Sesión inválida o vencida.' : 'No tienes acceso al backoffice.' })
+      return respond(authorization.error, { message: authorization.error === 401 ? 'Sesión inválida o vencida.' : 'No tienes acceso al backoffice.' })
     }
-    const resource = single(req.query.resource) ?? 'session'
     if (resource === 'session') {
       await audit(authorization.client, authorization.user.id, 'admin_login')
+      metrics.queryCount += 1
       const data: AdminApi['session'] = { userId: authorization.user.id, email: authorization.user.email ?? '', role: authorization.role }
-      return res.status(200).json({ data })
+      return respond(200, { data })
     }
-    const dataset = await loadAdminDataset(authorization.client)
-    const users = buildUsers(dataset)
-    if (resource === 'dashboard') return res.status(200).json({ data: buildDashboard(dataset, users) })
-    if (resource === 'users') return res.status(200).json({ data: users })
-    if (resource === 'subscriptions') return res.status(200).json({ data: buildSubscriptions(dataset, users) })
     if (resource === 'system') {
-      const data: SystemData = {
-        build: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
-        failedSubscriptions: dataset.subscriptions.filter((item) => item.status === 'payment_failed').length,
-        failedReminders: dataset.activities.filter(() => false).length,
-        webhooksAvailable: false,
-        emailDeliveryAvailable: false,
-      }
-      data.failedReminders = dataset.failedReminders
-      return res.status(200).json({ data })
+      const started = performance.now()
+      const [subscriptions, reminders] = await Promise.all([
+        authorization.client.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'payment_failed'),
+        authorization.client.from('appointment_reminders').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
+      ])
+      metrics.dataMs = performance.now() - started
+      metrics.queryCount += 2
+      if (subscriptions.error) throw subscriptions.error
+      if (reminders.error) throw reminders.error
+      const data: SystemData = { build: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null, failedSubscriptions: subscriptions.count ?? 0, failedReminders: reminders.count ?? 0, webhooksAvailable: false, emailDeliveryAvailable: false }
+      return respond(200, { data })
     }
+    const started = performance.now()
+    const usage = await loadUsage(authorization.client)
+    metrics.dataMs = performance.now() - started
+    metrics.queryCount += 2
+    const users = usersFromUsage(usage)
+    if (resource === 'dashboard') return respond(200, { data: dashboardFromUsage(usage, users) })
+    if (resource === 'users') return respond(200, { data: users })
+    if (resource === 'subscriptions') return respond(200, { data: subscriptionsFromUsage(usage, users) })
     if (resource === 'user') {
       const userId = single(req.query.userId)
       const workspaceId = single(req.query.workspaceId)
       const user = users.find((item) => item.userId === userId && item.workspaceId === workspaceId)
-      if (!user) return res.status(404).json({ message: 'Usuario no encontrado.' })
+      const row = usage.rows.find((item) => item.user_id === userId && item.workspace_id === workspaceId)
+      if (!user || !row) return respond(404, { message: 'Usuario no encontrado.' })
       await audit(authorization.client, authorization.user.id, 'user_viewed', 'workspace', workspaceId)
-      return res.status(200).json({ data: buildUserDetail(dataset, user) })
+      metrics.queryCount += 1
+      return respond(200, { data: userDetailFromUsage(row, user) })
     }
-    return res.status(404).json({ message: 'Recurso no encontrado.' })
+    return respond(404, { message: 'Recurso no encontrado.' })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown admin error'
     console.error('Admin endpoint failed', { message })
-    return res.status(500).json({ message: 'No pudimos cargar la información administrativa. Inténtalo nuevamente.' })
+    return respond(500, { message: 'No pudimos cargar la información administrativa. Inténtalo nuevamente.' })
   }
 }

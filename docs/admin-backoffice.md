@@ -24,6 +24,14 @@ Admin browser
 - El endpoint solo admite `GET`; la V1 no expone mutaciones operacionales.
 - El service role tiene privilegios mínimos: `SELECT` en `admin_users` y `SELECT, INSERT` en `admin_audit_log`.
 
+### Carga y cache de recursos
+
+El Admin solicita recursos independientes (`dashboard`, `users`, `subscriptions`, `system` y `user-detail`) en vez de reconstruir un dataset global para cada pantalla. Dashboard, Usuarios y Suscripciones consumen `admin_workspace_usage`, una función SQL agregada de solo lectura accesible únicamente por `service_role`; la identidad y autorización administrativa se siguen validando en cada request server-side.
+
+El navegador mantiene un cache exclusivamente en memoria y dentro de la sesión administrativa. Cada recurso tiene un stale time centralizado (60 segundos para Dashboard, Usuarios, Suscripciones y fichas; 45 segundos para Sistema). Una visita posterior muestra inmediatamente los datos disponibles y revalida en segundo plano. Las solicitudes simultáneas con la misma clave se deduplican. Al cerrar sesión se abortan solicitudes pendientes y se elimina todo el cache.
+
+El endpoint expone métricas no sensibles mediante `Server-Timing`, `X-Admin-Query-Count` y `X-Admin-Payload-Bytes`. En Preview registra un resumen por recurso; en Production solo registra requests excepcionalmente lentas.
+
 Agregar un administrador es una operación deliberada de infraestructura, no una función de la UI:
 
 ```sql
@@ -70,7 +78,7 @@ Los umbrales están centralizados en `apps/admin/api/admin.ts`:
 
 Se muestran fallos persistidos en suscripciones y recordatorios. Los estados de webhooks y entrega de emails figuran como `No disponible` porque el schema aún no tiene un registro global confiable para esos eventos. No se inventan métricas.
 
-La lectura global pagina las tablas en bloques de 1.000 filas. Es suficiente para V1; antes de gran escala conviene mover agregados a un schema privado/RPC administrativo con consultas SQL agregadas y paginar la tabla de usuarios desde servidor.
+Los agregados operacionales se calculan en PostgreSQL y el endpoint ya no descarga las tablas completas para cada navegación. La lista de usuarios todavía obtiene identidad y último login mediante Auth Admin API; antes de gran escala conviene agregar paginación server-side y filtros remotos.
 
 ## Vercel Admin
 
