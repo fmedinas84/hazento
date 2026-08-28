@@ -10,5 +10,5 @@
 @media(max-width:380px){.dashboard-kpis{grid-template-columns:1fr}.secondary-metric{display:grid;gap:6px}.secondary-metric p{text-align:left}.recent-cards dl{grid-template-columns:1fr 1fr}.attention-list button{grid-template-columns:38px 1fr auto}}
 
 /* Activation funnel: one conversion reference per stage */
-.funnel{gap:0}.funnel-step{gap:0}.funnel-row{gap:7px}.funnel-row>div:first-child{gap:3px}.funnel-row>div:first-child span{font-size:11px}.funnel-drop{display:flex;align-items:center;gap:7px;min-height:30px;margin-left:10px;color:#8a6653;font-size:11px;font-weight:650}.funnel-drop>span{color:#a0a7a1;font-size:15px}
-@media(max-width:390px){.funnel-drop{min-height:26px;margin-left:6px;font-size:10px}.funnel-row>div:first-child span{font-size:10px}}
+.funnel{gap:14px}.funnel-step{gap:0}.funnel-row{gap:7px}.funnel-row>div:first-child{gap:3px}.funnel-row>div:first-child span{font-size:11px}
+@media(max-width:390px){.funnel{gap:12px}.funnel-row>div:first-child span{font-size:10px}}
