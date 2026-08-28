@@ -516,12 +516,14 @@ function userDetailFromUsage(row: UsageRow, user: UserSummary): UserDetail {
 
 async function authorize(req: Request): Promise<Authorization> {
   const url = requiredEnv('SUPABASE_URL')
+  const publishableKey = requiredEnv('VITE_SUPABASE_PUBLISHABLE_KEY')
   const secret = process.env.SUPABASE_SECRET_KEY ?? requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const authClient = createServiceClient(url, publishableKey)
   const client = createServiceClient(url, secret)
   const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]
   if (!token) return { error: 401 as const, authMs: 0, authorizationMs: 0 }
   const authStarted = performance.now()
-  const { data: identity, error } = await client.auth.getUser(token)
+  const { data: identity, error } = await authClient.auth.getUser(token)
   const authMs = performance.now() - authStarted
   if (error || !identity.user) return { error: 401 as const, authMs, authorizationMs: 0 }
   const authorizationStarted = performance.now()
