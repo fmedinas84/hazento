@@ -183,6 +183,14 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [hasSession, setHasSession] = useState(false)
   const sessionState = useResource('session', hasSession)
+  const returnToLogin = async () => {
+    clearAdminResourceCache()
+    try {
+      await supabase?.auth.signOut({ scope: 'local' })
+    } finally {
+      setHasSession(false)
+    }
+  }
   useEffect(() => {
     if (!supabase) { setAuthReady(true); return }
     void supabase.auth.getSession().then(({ data }) => { setHasSession(Boolean(data.session)); setAuthReady(true) })
@@ -195,6 +203,6 @@ export default function App() {
   if (!authReady) return <main className="login-page"><div className="login-card"><Skeleton lines={5} /></div></main>
   if (!hasSession) return <Login />
   if (sessionState.status === 'loading') return <main className="login-page"><div className="login-card"><Skeleton lines={5} /></div></main>
-  if (sessionState.status === 'error' || !sessionState.data) return <main className="login-page"><section className="login-card"><ShieldCheck size={42} /><h1>Acceso denegado</h1><p>{sessionState.message ?? 'Tu cuenta no está autorizada para usar este backoffice.'}</p><button className="secondary-button" onClick={() => supabase?.auth.signOut()}>Volver</button></section></main>
+  if (sessionState.status === 'error' || !sessionState.data) return <main className="login-page"><section className="login-card"><ShieldCheck size={42} /><h1>Acceso denegado</h1><p>{sessionState.message ?? 'Tu cuenta no está autorizada para usar este backoffice.'}</p><button className="secondary-button" onClick={() => void returnToLogin()}>Volver</button></section></main>
   return <AdminShell session={sessionState.data as AdminSession} />
 }
