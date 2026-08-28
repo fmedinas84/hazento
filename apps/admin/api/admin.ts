@@ -292,9 +292,9 @@ function buildDashboard(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, u
   const registered = uniqueUsers.length
   const funnelValues: Array<[string, number]> = [
     ['Registrados', registered],
-    ['Primer cliente', uniqueUsers.filter((user) => user.clients > 0).length],
-    ['Primera atención', uniqueUsers.filter((user) => user.prestations > 0).length],
-    ['Primer pago', uniqueUsers.filter((user) => user.payments > 0).length],
+    ['Crearon un cliente', uniqueUsers.filter((user) => user.clients > 0).length],
+    ['Crearon una atención', uniqueUsers.filter((user) => user.prestations > 0).length],
+    ['Registraron un pago', uniqueUsers.filter((user) => user.payments > 0).length],
   ]
   const funnel = funnelValues.map(([label, value], index) => ({
     label,

@@ -66,6 +66,16 @@ function KpiCard({ title, value, subtitle, meta }: { title: string; value: strin
   return <article className="kpi-card"><span>{title}</span><strong>{value}</strong><small>{subtitle}</small>{meta && <em>{meta}</em>}</article>
 }
 
+function funnelRateLabel(data: DashboardData['funnel'], index: number) {
+  const item = data[index]
+  if (index === 0) return item.value ? '100%' : 'Sin usuarios registrados'
+  const previous = data[index - 1]
+  if (!previous.value) return 'Sin base de comparación'
+  if (index === 1) return `${item.stepConversion}% de registrados`
+  if (index === 2) return `${item.stepConversion}% de quienes crearon cliente`
+  return `${item.stepConversion}% de quienes crearon una atención`
+}
+
 function DashboardPage({ navigate }: { navigate: (page: Page, filter?: AttentionFilter) => void }) {
   const state = useResource('dashboard')
   if (state.status === 'loading') return <><div className="kpi-grid dashboard-kpis">{Array.from({ length: 4 }, (_, index) => <div className="kpi-card" key={index}><Skeleton lines={3} /></div>)}</div><div className="dashboard-grid"><div className="panel"><Skeleton lines={6} /></div><div className="panel"><Skeleton lines={6} /></div></div></>
@@ -87,7 +97,7 @@ function DashboardPage({ navigate }: { navigate: (page: Page, filter?: Attention
       <section className="panel chart-panel"><div className="section-heading"><div><span className="eyebrow">CRECIMIENTO</span><h2>Nuevos usuarios por mes</h2></div><span className="muted">Últimos 6 meses</span></div>
         <div className="bar-chart" role="img" aria-label="Nuevos usuarios registrados por mes">{data.evolution.map((item) => <div className="bar-column" key={item.month} title={`${item.label}: ${item.users} usuarios`}><span>{item.users}</span><div className="bar-track"><i style={{ height: `${Math.max(item.users ? 10 : 2, (item.users / maximumUsers) * 100)}%` }} /></div><small>{item.label}</small></div>)}</div>
       </section>
-      <section className="panel"><div className="section-heading"><div><span className="eyebrow">ACTIVACIÓN</span><h2>Funnel inicial</h2></div></div><div className="funnel">{data.funnel.map((item) => <div className="funnel-step" key={item.label}>{item.stepConversion !== null && <div className="step-conversion"><ArrowRight size={14} /> {item.stepConversion}% desde la etapa anterior</div>}<div className="funnel-row"><div><strong>{item.label}</strong><span>{item.percentage}% del total</span></div><b>{item.value}</b><div className="progress"><i style={{ width: `${item.percentage}%` }} /></div></div></div>)}</div></section>
+      <section className="panel"><div className="section-heading"><div><span className="eyebrow">ACTIVACIÓN</span><h2>Activación de usuarios</h2></div></div><div className="funnel">{data.funnel.map((item, index) => { const next = data.funnel[index + 1]; const notAdvanced = next ? Math.max(0, item.value - next.value) : null; return <div className="funnel-step" key={item.label}><div className="funnel-row"><div><strong>{item.label}</strong><span>{funnelRateLabel(data.funnel, index)}</span></div><b>{item.value}</b><div className="progress" aria-label={`${item.percentage}% del total de usuarios registrados`}><i style={{ width: `${item.percentage}%` }} /></div></div>{notAdvanced !== null && <div className="funnel-drop"><span aria-hidden="true">↓</span> {notAdvanced} no avanzaron</div>}</div> })}</div></section>
     </div>
     <div className="dashboard-grid operational-grid">
       <section className="panel"><div className="section-heading"><div><span className="eyebrow">SEÑALES</span><h2>Requieren atención</h2></div></div>{issues.length ? <div className="attention-list">{issues.map((item) => <button key={item.key} onClick={() => navigate(item.target, item.target === 'users' ? item.key as AttentionFilter : undefined)}><strong>{item.count}</strong><span>{item.label}</span><ArrowRight size={17} aria-hidden="true" /></button>)}</div> : <div className="positive-state"><CheckCircle2 size={22} /><div><strong>Sin alertas operacionales</strong><span>No detectamos situaciones que requieran revisión.</span></div></div>}</section>
