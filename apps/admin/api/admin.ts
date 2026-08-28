@@ -1,4 +1,4 @@
-import { createClient, type User } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import type {
   AdminApi,
   AdminRole,
@@ -57,7 +57,8 @@ function createServiceClient(url: string, key: string) {
 }
 
 type ServiceClient = ReturnType<typeof createServiceClient>
-type Authorization = { error: 401 | 403; authMs: number; authorizationMs: number } | { client: ServiceClient; user: User; role: AdminRole; authMs: number; authorizationMs: number }
+type AdminIdentity = { id: string; email: string | null }
+type Authorization = { error: 401 | 403; authMs: number; authorizationMs: number } | { client: ServiceClient; user: AdminIdentity; role: AdminRole; authMs: number; authorizationMs: number }
 
 const STATUS_THRESHOLDS = {
   newDays: 14,
@@ -523,15 +524,20 @@ async function authorize(req: Request): Promise<Authorization> {
   const token = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]
   if (!token) return { error: 401 as const, authMs: 0, authorizationMs: 0 }
   const authStarted = performance.now()
-  const { data: identity, error } = await authClient.auth.getUser(token)
+  const { data: identity, error } = await authClient.auth.getClaims(token)
   const authMs = performance.now() - authStarted
-  if (error || !identity.user) return { error: 401 as const, authMs, authorizationMs: 0 }
+  const claims = identity?.claims
+  if (error || !claims?.sub) {
+    console.warn('Admin token validation failed', { code: error?.code, status: error?.status })
+    return { error: 401 as const, authMs, authorizationMs: 0 }
+  }
+  const user: AdminIdentity = { id: claims.sub, email: typeof claims.email === 'string' ? claims.email : null }
   const authorizationStarted = performance.now()
-  const { data: admin, error: adminError } = await client.from('admin_users').select('role').eq('user_id', identity.user.id).maybeSingle()
+  const { data: admin, error: adminError } = await client.from('admin_users').select('role').eq('user_id', user.id).maybeSingle()
   const authorizationMs = performance.now() - authorizationStarted
   if (adminError) throw adminError
   if (!admin) return { error: 403 as const, authMs, authorizationMs }
-  return { client, user: identity.user, role: admin.role as AdminRole, authMs, authorizationMs }
+  return { client, user, role: admin.role as AdminRole, authMs, authorizationMs }
 }
 
 async function audit(client: ServiceClient, adminUserId: string, action: string, targetType?: string, targetId?: string) {
