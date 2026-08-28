@@ -1,5 +1,9 @@
 # Hazento
 
+## Backoffice administrativo
+
+La primera versión read-only del backoffice vive como una aplicación Vite independiente en `apps/admin`. Su arquitectura, métricas, seguridad y configuración de Vercel están documentadas en [`docs/admin-backoffice.md`](docs/admin-backoffice.md).
+
 La preparación del modelo PostgreSQL y el plan de transición desde DemoStore están documentados en [docs/supabase-production-readiness.md](docs/supabase-production-readiness.md).
 
 La ejecución y validación sobre un proyecto Supabase de staging está documentada en [docs/supabase-staging-validation.md](docs/supabase-staging-validation.md).
