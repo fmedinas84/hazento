@@ -48,7 +48,13 @@ No se registran notas, textos clínicos ni payloads operacionales.
 - Último login: `auth.users.last_sign_in_at`, mediante Auth Admin API server-side.
 - Última actividad: máximo `created_at`/`updated_at` de people, prestaciones, oportunidades, engagements, actividades, solicitudes y pagos del workspace.
 - Usuarios activos: última actividad operacional dentro de 7 o 30 días. No es tracking de clics.
-- Funnel: workspace/usuario registrado → primer cliente → primera prestación → primer pago real no anulado.
+- Los KPI de usuarios y el funnel deduplican por `user_id`; una persona con membresías en más de un workspace se cuenta una sola vez. Plus continúa midiéndose por workspace.
+- Funnel: usuario registrado → primer cliente → primera prestación → primer pago real no anulado. Cada etapa muestra porcentaje sobre registrados y conversión desde la etapa anterior.
+- Comparaciones mensuales: si el período anterior contiene cero registros no se calcula un porcentaje artificial; se muestran ambos valores y el tramo comparable.
+- Requieren atención: usuarios sin primer cliente, sin actividad operacional por más de 30 días, suscripciones `payment_failed` y recordatorios `failed`. Solo aparecen señales con valor mayor que cero.
+- Usuarios recientes: últimas cinco altas de Auth, con metadata mínima de plan, fecha, actividad y adopción.
+
+El gráfico de crecimiento muestra nuevos usuarios por mes durante los últimos seis meses. Se implementó con HTML/CSS accesible y se retiró Recharts: para una única serie de barras, la dependencia agregaba complejidad y peso de bundle sin aportar interacción necesaria. Los valores siguen disponibles como texto y `title` para no depender solo de la altura visual.
 
 ## Estado derivado de usuario
 

@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, ArrowLeft, Building2, CreditCard, LayoutDashboard, LogOut, RefreshCw, Search, Settings, ShieldCheck, Users } from 'lucide-react'
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { ArrowLeft, ArrowRight, CheckCircle2, CreditCard, LayoutDashboard, LogOut, RefreshCw, Search, Settings, ShieldCheck, Users } from 'lucide-react'
 import { adminRequest, getUserDetail } from './lib/api'
 import { hasSupabaseConfig, supabase } from './lib/supabase'
 import type { AdminApi, AdminSession, DashboardData, SubscriptionSummary, SystemData, UserDetail, UserHealth, UserSummary } from '../shared/types'
@@ -16,10 +15,10 @@ function formatDate(value: string | null, withTime = false) {
   return new Intl.DateTimeFormat('es-CL', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' }).format(new Date(value))
 }
 
-function variation(current: number, previous: number) {
-  if (!previous) return current ? '+100%' : '0%'
+function comparison(current: number, previous: number, previousMonth: string, previousPeriod: string) {
+  if (!previous) return current ? `${current} este mes · 0 en ${previousPeriod}` : `Sin registros este mes ni en ${previousPeriod}`
   const value = Math.round(((current - previous) / previous) * 100)
-  return `${value >= 0 ? '+' : ''}${value}%`
+  return `${value >= 0 ? '+' : ''}${value}% vs mismos días de ${previousMonth}`
 }
 
 function Skeleton({ lines = 4 }: { lines?: number }) {
@@ -63,33 +62,41 @@ function useResource<K extends keyof AdminApi>(resource: K, enabled = true) {
   return { ...state, retry: load }
 }
 
-function KpiCard({ title, value, subtitle, tone }: { title: string; value: string | number; subtitle: string; tone?: 'dark' }) {
-  return <article className={`kpi-card ${tone === 'dark' ? 'dark' : ''}`}><span>{title}</span><strong>{value}</strong><small>{subtitle}</small></article>
+function KpiCard({ title, value, subtitle, meta }: { title: string; value: string | number; subtitle: string; meta?: string }) {
+  return <article className="kpi-card"><span>{title}</span><strong>{value}</strong><small>{subtitle}</small>{meta && <em>{meta}</em>}</article>
 }
 
-function DashboardPage() {
+function DashboardPage({ navigate }: { navigate: (page: Page, filter?: AttentionFilter) => void }) {
   const state = useResource('dashboard')
-  if (state.status === 'loading') return <><div className="kpi-grid">{Array.from({ length: 6 }, (_, index) => <div className="kpi-card" key={index}><Skeleton lines={3} /></div>)}</div><div className="panel"><Skeleton lines={6} /></div></>
+  if (state.status === 'loading') return <><div className="kpi-grid dashboard-kpis">{Array.from({ length: 4 }, (_, index) => <div className="kpi-card" key={index}><Skeleton lines={3} /></div>)}</div><div className="dashboard-grid"><div className="panel"><Skeleton lines={6} /></div><div className="panel"><Skeleton lines={6} /></div></div></>
   if (state.status === 'error' || !state.data) return <ErrorState message={state.message} retry={state.retry} />
   const data = state.data as DashboardData
   const k = data.kpis
-  return <>
-    <div className="kpi-grid">
-      <KpiCard title="Usuarios" value={k.usersTotal} subtitle={`${k.usersThisMonth} este mes · ${variation(k.usersThisMonth, k.usersPreviousComparable)} vs período anterior`} tone="dark" />
-      <KpiCard title="Workspaces Plus" value={k.plusTotal} subtitle={`${k.plusPercentage}% del total · ${k.plusThisMonth} altas este mes`} />
-      <KpiCard title="Atenciones" value={k.prestationsThisMonth} subtitle={`${variation(k.prestationsThisMonth, k.prestationsPreviousComparable)} vs mismos días anteriores`} />
-      <KpiCard title="Clientes" value={k.clientsThisMonth} subtitle={`${variation(k.clientsThisMonth, k.clientsPreviousComparable)} vs mismos días anteriores`} />
-      <KpiCard title="Activos · 7 días" value={k.active7} subtitle="Según actividad operacional" />
-      <KpiCard title="Activos · 30 días" value={k.active30} subtitle="No incluye solo inicios de sesión" />
+  const maximumUsers = Math.max(1, ...data.evolution.map((item) => item.users))
+  const activePercentage = k.usersTotal ? Math.round((k.active30 / k.usersTotal) * 100) : 0
+  const issues = data.attention.filter((item) => item.count > 0)
+  return <div className="dashboard-stack">
+    <div className="kpi-grid dashboard-kpis">
+      <KpiCard title="Usuarios totales" value={k.usersTotal} subtitle={`${k.usersThisMonth} nuevos este mes`} meta={comparison(k.usersThisMonth, k.usersPreviousComparable, data.period.previousMonth, data.period.previous)} />
+      <KpiCard title="Workspaces Plus" value={k.plusTotal} subtitle={`${k.plusPercentage}% de ${k.workspacesTotal} workspaces`} meta={`${k.plusThisMonth} altas Plus este mes`} />
+      <KpiCard title="Usuarios activos · 30 días" value={`${k.active30} / ${k.usersTotal}`} subtitle={`${activePercentage}% de usuarios`} meta={`${k.active7} activos en los últimos 7 días`} />
+      <KpiCard title="Atenciones · este mes" value={k.prestationsThisMonth} subtitle={comparison(k.prestationsThisMonth, k.prestationsPreviousComparable, data.period.previousMonth, data.period.previous)} meta={`Período actual: ${data.period.current}`} />
     </div>
+    <section className="secondary-metric" aria-label="Adopción de clientes"><div><span>Clientes creados este mes</span><strong>{k.clientsThisMonth}</strong></div><p>{comparison(k.clientsThisMonth, k.clientsPreviousComparable, data.period.previousMonth, data.period.previous)}</p></section>
     <div className="dashboard-grid">
-      <section className="panel chart-panel"><div className="section-heading"><div><span className="eyebrow">CRECIMIENTO</span><h2>Evolución de usuarios</h2></div><span className="muted">Acumulado mensual</span></div>
-        {data.evolution.length ? <ResponsiveContainer width="100%" height={300}><LineChart data={data.evolution} margin={{ top: 12, right: 16, left: -20, bottom: 4 }}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="month" /><YAxis yAxisId="users" allowDecimals={false} /><YAxis yAxisId="plus" orientation="right" allowDecimals={false} /><Tooltip /><Legend /><Line yAxisId="users" type="monotone" dataKey="users" name="Usuarios" stroke="#1d2722" strokeWidth={3} /><Line yAxisId="plus" type="monotone" dataKey="plus" name="Plus" stroke="#8a6fcb" strokeWidth={3} /></LineChart></ResponsiveContainer> : <Empty text="Todavía no hay historia suficiente para el gráfico." />}
+      <section className="panel chart-panel"><div className="section-heading"><div><span className="eyebrow">CRECIMIENTO</span><h2>Nuevos usuarios por mes</h2></div><span className="muted">Últimos 6 meses</span></div>
+        <div className="bar-chart" role="img" aria-label="Nuevos usuarios registrados por mes">{data.evolution.map((item) => <div className="bar-column" key={item.month} title={`${item.label}: ${item.users} usuarios`}><span>{item.users}</span><div className="bar-track"><i style={{ height: `${Math.max(item.users ? 10 : 2, (item.users / maximumUsers) * 100)}%` }} /></div><small>{item.label}</small></div>)}</div>
       </section>
-      <section className="panel"><div className="section-heading"><div><span className="eyebrow">ACTIVACIÓN</span><h2>Funnel inicial</h2></div></div><div className="funnel">{data.funnel.map((item) => <div className="funnel-row" key={item.label}><div><strong>{item.label}</strong><span>{item.percentage}% del total</span></div><b>{item.value}</b><div className="progress"><i style={{ width: `${item.percentage}%` }} /></div></div>)}</div></section>
+      <section className="panel"><div className="section-heading"><div><span className="eyebrow">ACTIVACIÓN</span><h2>Funnel inicial</h2></div></div><div className="funnel">{data.funnel.map((item) => <div className="funnel-step" key={item.label}>{item.stepConversion !== null && <div className="step-conversion"><ArrowRight size={14} /> {item.stepConversion}% desde la etapa anterior</div>}<div className="funnel-row"><div><strong>{item.label}</strong><span>{item.percentage}% del total</span></div><b>{item.value}</b><div className="progress"><i style={{ width: `${item.percentage}%` }} /></div></div></div>)}</div></section>
     </div>
-  </>
+    <div className="dashboard-grid operational-grid">
+      <section className="panel"><div className="section-heading"><div><span className="eyebrow">SEÑALES</span><h2>Requieren atención</h2></div></div>{issues.length ? <div className="attention-list">{issues.map((item) => <button key={item.key} onClick={() => navigate(item.target, item.target === 'users' ? item.key as AttentionFilter : undefined)}><strong>{item.count}</strong><span>{item.label}</span><ArrowRight size={17} aria-hidden="true" /></button>)}</div> : <div className="positive-state"><CheckCircle2 size={22} /><div><strong>Sin alertas operacionales</strong><span>No detectamos situaciones que requieran revisión.</span></div></div>}</section>
+      <section className="panel recent-panel"><div className="section-heading"><div><span className="eyebrow">ALTAS</span><h2>Usuarios recientes</h2></div><button className="text-action" onClick={() => navigate('users')}>Ver todos <ArrowRight size={15} /></button></div>{data.recentUsers.length ? <><div className="recent-table"><div className="recent-head"><span>Usuario</span><span>Plan</span><span>Alta</span><span>Última actividad</span><span>Uso</span></div>{data.recentUsers.map((user) => <div className="recent-row" key={user.userId}><span><strong>{user.name}</strong><small>{user.email}</small></span><Badge value={user.plan} /><span>{formatDate(user.registeredAt)}</span><span>{formatDate(user.lastActivityAt)}</span><span>{user.clients ? `${user.clients} ${user.clients === 1 ? 'cliente' : 'clientes'}` : 'Sin actividad'}</span></div>)}</div><div className="recent-cards">{data.recentUsers.map((user) => <article key={user.userId}><div><strong>{user.name}</strong><span>{user.email}</span></div><Badge value={user.plan} /><dl><div><dt>Alta</dt><dd>{formatDate(user.registeredAt)}</dd></div><div><dt>Actividad</dt><dd>{formatDate(user.lastActivityAt)}</dd></div><div><dt>Uso</dt><dd>{user.clients ? `${user.clients} ${user.clients === 1 ? 'cliente' : 'clientes'}` : 'Sin actividad'}</dd></div></dl></article>)}</div></> : <Empty text="Todavía no hay usuarios registrados." />}</section>
+    </div>
+  </div>
 }
+
+type AttentionFilter = 'no_clients' | 'inactive'
 
 function Filters({ query, setQuery, children }: { query: string; setQuery: (value: string) => void; children?: React.ReactNode }) {
   return <div className="filters"><label className="search"><Search size={18} aria-hidden="true" /><span className="sr-only">Buscar</span><input placeholder="Buscar por nombre o email…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>{children}</div>
@@ -97,7 +104,7 @@ function Filters({ query, setQuery, children }: { query: string; setQuery: (valu
 
 function Empty({ text }: { text: string }) { return <div className="empty">{text}</div> }
 
-function UserList({ onOpen }: { onOpen: (user: UserSummary) => void }) {
+function UserList({ onOpen, attentionFilter }: { onOpen: (user: UserSummary) => void; attentionFilter: AttentionFilter | null }) {
   const state = useResource('users')
   const [query, setQuery] = useState('')
   const [plan, setPlan] = useState('all')
@@ -108,8 +115,11 @@ function UserList({ onOpen }: { onOpen: (user: UserSummary) => void }) {
     const text = `${user.name} ${user.email}`.toLowerCase()
     const age = Math.floor((Date.now() - new Date(user.registeredAt).getTime()) / 86_400_000)
     const matchesDate = registered === 'all' || (registered === '30' && age <= 30) || (registered === '90' && age <= 90) || (registered === 'year' && new Date(user.registeredAt).getFullYear() === new Date().getFullYear())
-    return text.includes(query.trim().toLowerCase()) && (plan === 'all' || user.plan === plan) && (vertical === 'all' || user.vertical === vertical) && (health === 'all' || user.health === health) && matchesDate
-  }), [state.data, query, plan, vertical, health, registered])
+    const activityBaseline = user.lastActivityAt ?? user.registeredAt
+    const inactiveDays = Math.floor((Date.now() - new Date(activityBaseline).getTime()) / 86_400_000)
+    const matchesAttention = attentionFilter === null || (attentionFilter === 'no_clients' ? user.clients === 0 : inactiveDays > 30)
+    return text.includes(query.trim().toLowerCase()) && (plan === 'all' || user.plan === plan) && (vertical === 'all' || user.vertical === vertical) && (health === 'all' || user.health === health) && matchesDate && matchesAttention
+  }), [state.data, query, plan, vertical, health, registered, attentionFilter])
   if (state.status === 'loading') return <div className="panel"><Skeleton lines={8} /></div>
   if (state.status === 'error') return <ErrorState message={state.message} retry={state.retry} />
   return <><Filters query={query} setQuery={setQuery}><select aria-label="Filtrar por plan" value={plan} onChange={(e) => setPlan(e.target.value)}><option value="all">Todos los planes</option><option value="free">Free</option><option value="plus">Plus</option></select><select aria-label="Filtrar por vertical" value={vertical} onChange={(e) => setVertical(e.target.value)}><option value="all">Todas las profesiones</option>{Object.entries(verticalNames).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><select aria-label="Filtrar por actividad" value={health} onChange={(e) => setHealth(e.target.value)}><option value="all">Toda actividad</option>{Object.entries(healthNames).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><select aria-label="Filtrar por fecha de alta" value={registered} onChange={(e) => setRegistered(e.target.value)}><option value="all">Cualquier fecha</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="year">Este año</option></select></Filters>
@@ -154,9 +164,11 @@ const nav = [
 
 function AdminShell({ session }: { session: AdminSession }) {
   const [page, setPage] = useState<Page>('dashboard')
+  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter | null>(null)
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null)
   const title = nav.find((item) => item.id === page)?.label ?? 'Dashboard'
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">H</div><div><strong>Hazento</strong><span>Administración</span></div></div><nav aria-label="Administración">{nav.map((item) => <button className={page === item.id ? 'active' : ''} onClick={() => setPage(item.id)} key={item.id}><item.icon size={20} /><span>{item.label}</span></button>)}</nav><div className="sidebar-user"><ShieldCheck size={18} /><div><strong>{session.role === 'super_admin' ? 'Super Admin' : 'Soporte'}</strong><span>{session.email}</span></div><button onClick={() => supabase?.auth.signOut()} aria-label="Cerrar sesión"><LogOut size={18} /></button></div></aside><main className="content"><header className="topbar"><div><span className="eyebrow">BACKOFFICE READ-ONLY</span><h1>{title}</h1></div><div className="readonly-pill"><ShieldCheck size={16} /> Solo lectura</div></header><div className="page-content">{page === 'dashboard' && <DashboardPage />}{page === 'users' && <UserList onOpen={setSelectedUser} />}{page === 'subscriptions' && <SubscriptionsPage />}{page === 'system' && <SystemPage />}</div></main>{selectedUser && <UserDetailPanel user={selectedUser} close={() => setSelectedUser(null)} />}</div>
+  const navigate = (target: Page, filter: AttentionFilter | null = null) => { setAttentionFilter(filter); setPage(target) }
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark">H</div><div><strong>Hazento</strong><span>Administración</span></div></div><nav aria-label="Administración">{nav.map((item) => <button className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)} key={item.id}><item.icon size={20} /><span>{item.label}</span></button>)}</nav><div className="sidebar-user"><ShieldCheck size={18} /><div><strong>{session.role === 'super_admin' ? 'Super Admin' : 'Soporte'}</strong><span>{session.email}</span></div><button onClick={() => supabase?.auth.signOut()} aria-label="Cerrar sesión"><LogOut size={18} /></button></div></aside><main className="content"><header className="topbar"><h1>{title}</h1><div className="readonly-pill"><ShieldCheck size={16} /> Solo lectura</div></header><div className="page-content">{page === 'dashboard' && <DashboardPage navigate={navigate} />}{page === 'users' && <UserList onOpen={setSelectedUser} attentionFilter={attentionFilter} />}{page === 'subscriptions' && <SubscriptionsPage />}{page === 'system' && <SystemPage />}</div></main>{selectedUser && <UserDetailPanel user={selectedUser} close={() => setSelectedUser(null)} />}</div>
 }
 
 export default function App() {

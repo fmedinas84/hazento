@@ -47,6 +47,11 @@ export type UserDetail = UserSummary & {
 
 export type DashboardData = {
   generatedAt: string
+  period: {
+    current: string
+    previous: string
+    previousMonth: string
+  }
   kpis: {
     usersTotal: number
     usersThisMonth: number
@@ -55,6 +60,7 @@ export type DashboardData = {
     plusThisMonth: number
     plusPreviousComparable: number
     plusPercentage: number
+    workspacesTotal: number
     prestationsThisMonth: number
     prestationsPreviousComparable: number
     clientsThisMonth: number
@@ -62,8 +68,15 @@ export type DashboardData = {
     active7: number
     active30: number
   }
-  evolution: Array<{ month: string; users: number; plus: number }>
-  funnel: Array<{ label: string; value: number; percentage: number }>
+  evolution: Array<{ month: string; label: string; users: number }>
+  funnel: Array<{ label: string; value: number; percentage: number; stepConversion: number | null }>
+  attention: Array<{
+    key: 'no_clients' | 'inactive' | 'payment_failed' | 'reminder_failed'
+    label: string
+    count: number
+    target: 'users' | 'subscriptions' | 'system'
+  }>
+  recentUsers: UserSummary[]
 }
 
 export type SubscriptionSummary = {

@@ -118,7 +118,15 @@ function comparablePeriods(now: Date) {
   const previousLastDay = new Date(Date.UTC(local.year, local.month - 1, 0)).getUTCDate()
   const comparableDay = Math.min(local.day, previousLastDay)
   const previousEnd = zonedDate(previousYear, previousMonth, comparableDay, true)
-  return { currentStart, previousStart, previousEnd }
+  const monthFormatter = new Intl.DateTimeFormat('es-CL', { timeZone: BUSINESS_TIME_ZONE, month: 'long' })
+  return {
+    currentStart,
+    previousStart,
+    previousEnd,
+    currentLabel: `1–${local.day} ${monthFormatter.format(now)}`,
+    previousLabel: `1–${comparableDay} ${monthFormatter.format(previousStart)}`,
+    previousMonth: monthFormatter.format(previousStart),
+  }
 }
 
 function within(value: string, start: Date, end: Date): boolean {
@@ -161,11 +169,12 @@ async function listAuthUsers(client: ServiceClient): Promise<AuthUserRow[]> {
 }
 
 async function loadAdminDataset(client: ServiceClient) {
-  const [profilesResult, workspacesResult, membersResult, subscriptionsResult, authUsers, accounts, prestations, opportunities, engagements, activities, paymentRequests, payments] = await Promise.all([
+  const [profilesResult, workspacesResult, membersResult, subscriptionsResult, failedRemindersResult, authUsers, accounts, prestations, opportunities, engagements, activities, paymentRequests, payments] = await Promise.all([
     client.from('profiles').select('id,first_name,last_name,created_at'),
     client.from('workspaces').select('id,name,vertical_type,created_at,updated_at'),
     client.from('workspace_members').select('user_id,workspace_id,role,created_at'),
     client.from('subscriptions').select('workspace_id,plan,status,provider,current_period_start,next_payment_date,created_at,updated_at'),
+    client.from('appointment_reminders').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
     listAuthUsers(client),
     loadAllRows(client, 'accounts', 'id,workspace_id,created_at,updated_at,status'),
     loadAllRows(client, 'prestations', 'id,workspace_id,created_at,updated_at,status'),
@@ -175,7 +184,7 @@ async function loadAdminDataset(client: ServiceClient) {
     loadAllRows(client, 'payment_requests', 'id,workspace_id,created_at,updated_at,status'),
     loadAllRows(client, 'payments', 'id,workspace_id,created_at,updated_at,status'),
   ])
-  for (const result of [profilesResult, workspacesResult, membersResult, subscriptionsResult]) {
+  for (const result of [profilesResult, workspacesResult, membersResult, subscriptionsResult, failedRemindersResult]) {
     if (result.error) throw result.error
   }
   return {
@@ -183,6 +192,7 @@ async function loadAdminDataset(client: ServiceClient) {
     workspaces: (workspacesResult.data ?? []) as WorkspaceRow[],
     members: (membersResult.data ?? []) as MemberRow[],
     subscriptions: (subscriptionsResult.data ?? []) as SubscriptionRow[],
+    failedReminders: failedRemindersResult.count ?? 0,
     authUsers,
     accounts,
     prestations,
@@ -192,6 +202,43 @@ async function loadAdminDataset(client: ServiceClient) {
     paymentRequests,
     payments,
   }
+}
+
+function collapseUsers(users: UserSummary[], now: Date): UserSummary[] {
+  const grouped = new Map<string, UserSummary>()
+  for (const user of users) {
+    const current = grouped.get(user.userId)
+    if (!current) {
+      grouped.set(user.userId, { ...user })
+      continue
+    }
+    const lastActivityAt = maxDate([current.lastActivityAt, user.lastActivityAt])
+    const registeredAt = current.registeredAt < user.registeredAt ? current.registeredAt : user.registeredAt
+    const combinedEvents = current.clients + user.clients + current.prestations + user.prestations + current.opportunities + user.opportunities + current.payments + user.payments
+    grouped.set(user.userId, {
+      ...current,
+      plan: current.plan === 'plus' || user.plan === 'plus' ? 'plus' : 'free',
+      clients: current.clients + user.clients,
+      prestations: current.prestations + user.prestations,
+      opportunities: current.opportunities + user.opportunities,
+      paymentRequests: current.paymentRequests + user.paymentRequests,
+      payments: current.payments + user.payments,
+      lastSignInAt: maxDate([current.lastSignInAt, user.lastSignInAt]),
+      lastActivityAt,
+      registeredAt,
+      health: deriveHealth(registeredAt, lastActivityAt, combinedEvents, now),
+    })
+  }
+  return [...grouped.values()]
+}
+
+function recentMonthKeys(now: Date, count: number): Array<{ key: string; label: string }> {
+  const local = zonedParts(now)
+  const formatter = new Intl.DateTimeFormat('es-CL', { month: 'short', timeZone: BUSINESS_TIME_ZONE })
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(local.year, local.month - count + index, 15, 12))
+    return { key: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`, label: formatter.format(date).replace('.', '') }
+  })
 }
 
 function entitiesForWorkspace(rows: EntityRow[], workspaceId: string) {
@@ -234,39 +281,46 @@ function buildUsers(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, now =
 }
 
 function buildDashboard(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, users: UserSummary[], now = new Date()): DashboardData {
-  const { currentStart, previousStart, previousEnd } = comparablePeriods(now)
+  const { currentStart, previousStart, previousEnd, currentLabel, previousLabel, previousMonth } = comparablePeriods(now)
+  const uniqueUsers = collapseUsers(users, now)
   const current = (value: string) => within(value, currentStart, now)
   const previous = (value: string) => within(value, previousStart, previousEnd)
-  const active7 = users.filter((user) => (daysAgo(user.lastActivityAt, now) ?? Infinity) <= 7).length
-  const active30 = users.filter((user) => (daysAgo(user.lastActivityAt, now) ?? Infinity) <= 30).length
-  const userMonths = Array.from(new Set([
-    ...users.map((user) => monthKey(user.registeredAt)),
-    ...dataset.subscriptions.map((subscription) => monthKey(subscription.created_at)),
-  ])).sort()
+  const active7 = uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt, now) ?? Infinity) <= 7).length
+  const active30 = uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt, now) ?? Infinity) <= 30).length
   const plusWorkspaces = new Set(dataset.subscriptions.filter(isPlus).map((subscription) => subscription.workspace_id))
-  const evolution = userMonths.map((month) => ({
-    month,
-    users: users.filter((user) => monthKey(user.registeredAt) <= month).length,
-    plus: dataset.subscriptions.filter((subscription) => isPlus(subscription) && monthKey(subscription.current_period_start ?? subscription.created_at) <= month).length,
+  const evolution = recentMonthKeys(now, 6).map(({ key, label }) => ({ month: key, label, users: uniqueUsers.filter((user) => monthKey(user.registeredAt) === key).length }))
+  const registered = uniqueUsers.length
+  const funnelValues: Array<[string, number]> = [
+    ['Registrados', registered],
+    ['Primer cliente', uniqueUsers.filter((user) => user.clients > 0).length],
+    ['Primera atención', uniqueUsers.filter((user) => user.prestations > 0).length],
+    ['Primer pago', uniqueUsers.filter((user) => user.payments > 0).length],
+  ]
+  const funnel = funnelValues.map(([label, value], index) => ({
+    label,
+    value,
+    percentage: registered ? Math.round((value / registered) * 100) : 0,
+    stepConversion: index === 0 ? null : funnelValues[index - 1][1] ? Math.round((value / funnelValues[index - 1][1]) * 100) : 0,
   }))
-  const registered = users.length
-  const withClient = users.filter((user) => user.clients > 0).length
-  const withPrestation = users.filter((user) => user.prestations > 0).length
-  const withPayment = users.filter((user) => user.payments > 0).length
-  const funnel = [
-    ['Registrados', registered], ['Primer cliente', withClient], ['Primera atención', withPrestation], ['Primer pago', withPayment],
-  ].map(([label, value]) => ({ label: String(label), value: Number(value), percentage: registered ? Math.round((Number(value) / registered) * 100) : 0 }))
   const plusSubscriptions = dataset.subscriptions.filter(isPlus)
+  const attention: DashboardData['attention'] = [
+    { key: 'no_clients', label: 'Sin primer cliente', count: uniqueUsers.filter((user) => user.clients === 0).length, target: 'users' },
+    { key: 'inactive', label: 'Sin actividad por más de 30 días', count: uniqueUsers.filter((user) => (daysAgo(user.lastActivityAt ?? user.registeredAt, now) ?? 0) > 30).length, target: 'users' },
+    { key: 'payment_failed', label: 'Suscripción con pago fallido', count: dataset.subscriptions.filter((subscription) => subscription.status === 'payment_failed').length, target: 'subscriptions' },
+    { key: 'reminder_failed', label: 'Recordatorios fallidos', count: dataset.failedReminders, target: 'system' },
+  ]
   return {
     generatedAt: now.toISOString(),
+    period: { current: currentLabel, previous: previousLabel, previousMonth },
     kpis: {
-      usersTotal: users.length,
-      usersThisMonth: users.filter((user) => current(user.registeredAt)).length,
-      usersPreviousComparable: users.filter((user) => previous(user.registeredAt)).length,
+      usersTotal: uniqueUsers.length,
+      usersThisMonth: uniqueUsers.filter((user) => current(user.registeredAt)).length,
+      usersPreviousComparable: uniqueUsers.filter((user) => previous(user.registeredAt)).length,
       plusTotal: plusWorkspaces.size,
       plusThisMonth: plusSubscriptions.filter((item) => current(item.current_period_start ?? item.created_at)).length,
       plusPreviousComparable: plusSubscriptions.filter((item) => previous(item.current_period_start ?? item.created_at)).length,
       plusPercentage: dataset.workspaces.length ? Math.round((plusWorkspaces.size / dataset.workspaces.length) * 100) : 0,
+      workspacesTotal: dataset.workspaces.length,
       prestationsThisMonth: dataset.prestations.filter((item) => current(item.created_at)).length,
       prestationsPreviousComparable: dataset.prestations.filter((item) => previous(item.created_at)).length,
       clientsThisMonth: dataset.accounts.filter((item) => current(item.created_at)).length,
@@ -276,6 +330,8 @@ function buildDashboard(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, u
     },
     evolution,
     funnel,
+    attention,
+    recentUsers: [...uniqueUsers].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt)).slice(0, 5),
   }
 }
 
@@ -376,8 +432,7 @@ export default async function handler(req: Request, res: Response) {
         webhooksAvailable: false,
         emailDeliveryAvailable: false,
       }
-      const { count } = await authorization.client.from('appointment_reminders').select('id', { count: 'exact', head: true }).eq('status', 'failed')
-      data.failedReminders = count ?? 0
+      data.failedReminders = dataset.failedReminders
       return res.status(200).json({ data })
     }
     if (resource === 'user') {
