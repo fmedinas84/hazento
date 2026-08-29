@@ -1,0 +1,100 @@
+import { FormEvent, useEffect, useId, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
+import { Eye, EyeOff } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+
+export type AuthMode = 'login' | 'signup' | 'forgot' | 'update'
+
+type AuthFormProps = {
+  initialMode?: AuthMode
+  onAuthenticated?: (user: User) => void
+  onModeChange?: (mode: AuthMode) => void
+  onRecoveryComplete?: () => void
+  compact?: boolean
+}
+
+const authErrorMessage = (cause: unknown) => {
+  const message = cause instanceof Error ? cause.message.toLowerCase() : ''
+  if (message.includes('invalid login')) return 'Correo o contraseña incorrectos.'
+  if (message.includes('email not confirmed')) return 'Confirma tu correo antes de ingresar.'
+  if (message.includes('network') || message.includes('fetch')) return 'No pudimos conectarnos. Revisa tu conexión e inténtalo nuevamente.'
+  if (message.includes('already registered')) return 'Ya existe una cuenta con este correo.'
+  return 'No pudimos completar esta acción. Inténtalo nuevamente.'
+}
+
+export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange, onRecoveryComplete, compact = false }: AuthFormProps) {
+  const [mode, setModeState] = useState<AuthMode>(initialMode)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const errorId = useId()
+
+  useEffect(() => setModeState(initialMode), [initialMode])
+
+  const setMode = (next: AuthMode) => {
+    setModeState(next)
+    setError('')
+    setNotice('')
+    onModeChange?.(next)
+  }
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (busy) return
+    if (!supabase) {
+      setError('El acceso no está disponible en este entorno.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      if (mode === 'forgot') {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
+        if (resetError) throw resetError
+        setNotice('Te enviamos un enlace para crear una nueva contraseña. Revisa tu correo.')
+        return
+      }
+      if (mode === 'update') {
+        if (password !== passwordConfirmation) throw new Error('password mismatch')
+        const { data, error: updateError } = await supabase.auth.updateUser({ password })
+        if (updateError) throw updateError
+        setNotice('Tu contraseña fue actualizada correctamente.')
+        onRecoveryComplete?.()
+        if (data.user) onAuthenticated?.(data.user)
+        return
+      }
+      const result = mode === 'login'
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/app` } })
+      if (result.error) throw result.error
+      if (result.data.session?.user) onAuthenticated?.(result.data.session.user)
+      else if (mode === 'signup') setNotice('Cuenta creada. Revisa tu correo para confirmar tu email antes de ingresar.')
+    } catch (cause) {
+      if (cause instanceof Error && cause.message === 'password mismatch') setError('Las contraseñas no coinciden.')
+      else setError(authErrorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const title = mode === 'login' ? 'Bienvenido a Hazento' : mode === 'signup' ? 'Crea tu cuenta gratis' : mode === 'forgot' ? 'Recupera tu contraseña' : 'Crea una nueva contraseña'
+  const submitLabel = mode === 'login' ? 'Ingresar' : mode === 'signup' ? 'Crear cuenta gratis' : mode === 'forgot' ? 'Enviar enlace' : 'Actualizar contraseña'
+
+  return <form className={`auth-form${compact ? ' auth-form-compact' : ''}`} onSubmit={submit} aria-describedby={error ? errorId : undefined}>
+    <div className="auth-form-heading"><h2>{title}</h2><p>{mode === 'forgot' ? 'Te enviaremos un enlace seguro para continuar.' : mode === 'update' ? 'Elige una contraseña de al menos 8 caracteres.' : mode === 'signup' ? 'Empieza sin tarjeta de crédito.' : 'Accede a tu espacio de trabajo.'}</p></div>
+    {mode !== 'update' && <label><span>Correo electrónico</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" inputMode="email" /></label>}
+    {mode !== 'forgot' && <label><span>{mode === 'update' ? 'Nueva contraseña' : 'Contraseña'}</span><span className="password-field"><input type={showPassword ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} aria-invalid={Boolean(error)} /><button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
+    {mode === 'update' && <label><span>Confirmar nueva contraseña</span><input type="password" value={passwordConfirmation} onChange={event => setPasswordConfirmation(event.target.value)} required minLength={8} autoComplete="new-password" /></label>}
+    {error && <p className="form-error" id={errorId} role="alert">{error}</p>}
+    {notice && <p className="form-notice" role="status">{notice}</p>}
+    <button className="public-primary" disabled={busy}>{busy ? 'Procesando…' : submitLabel}</button>
+    {mode === 'login' && <div className="auth-form-links"><button type="button" onClick={() => setMode('forgot')}>¿Olvidaste tu contraseña?</button><span aria-hidden="true">o</span><button type="button" className="auth-register-link" onClick={() => setMode('signup')}>Crear cuenta gratis</button></div>}
+    {(mode === 'signup' || mode === 'forgot') && <button className="auth-back-link" type="button" onClick={() => setMode('login')}>Volver a iniciar sesión</button>}
+    {mode === 'signup' && <small className="auth-no-card">Sin tarjeta de crédito</small>}
+  </form>
+}

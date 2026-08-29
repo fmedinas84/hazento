@@ -81,7 +81,7 @@ const calendarPositionFromTimestamp = (value: string) => {
 const cls = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(' ')
 
 const pagePaths: Record<Page, string> = {
-  dashboard: '/', accounts: '/cuentas', account: '/cuentas/detalle', opportunities: '/oportunidades',
+  dashboard: '/app', accounts: '/cuentas', account: '/cuentas/detalle', opportunities: '/oportunidades',
   opportunity: '/oportunidades/detalle', agenda: '/agenda', work: '/trabajo', engagement: '/trabajo/detalle',
   prestations: '/prestaciones', activities: '/actividades', payments: '/pagos', services: '/servicios', settings: '/configuracion',
 }
@@ -620,7 +620,7 @@ function IntegrationsSettings({ notify }: { notify: (message: string) => void })
 
 function RepositorySettingsPage({ vertical, setVertical, notify }: { vertical: Vertical; setVertical: (value: Vertical) => void; notify: (message: string) => void }) {
   const repositories = useRepositories()
-  const [tab, setTab] = useState('Negocio')
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'Negocio')
   const [profile, setProfile] = useState(repositories.profile)
   const [workspace, setWorkspace] = useState(repositories.workspace)
   const profileEmail = dataSource === 'supabase' ? repositories.profile.email : profile.email
@@ -651,6 +651,12 @@ function SettingsPage({ vertical, setVertical, notify }: { vertical:Vertical; se
 function App() {
   const {page,go}=useAppRoute(); const store=useRepositories(); const [vertical,setVerticalState]=useState<Vertical>(()=>dataSource === 'supabase' ? (store.workspace.vertical || 'health') : ((localStorage.getItem('hazento-vertical') as Vertical)||'health')); const [collapsed,setCollapsed]=useState(false); const [mobileOpen,setMobileOpen]=useState(false); const [createOpen,setCreateOpen]=useState(false); const [createType,setCreateType]=useState('Nueva atención'); const [createAccountId,setCreateAccountId]=useState<string|undefined>(); const [createEngagementId,setCreateEngagementId]=useState<string|undefined>(); const [createMenu,setCreateMenu]=useState(false); const [searchOpen,setSearchOpen]=useState(false); const [searchQuery,setSearchQuery]=useState(''); const [toast,setToast]=useState('')
   const labels=verticalLabels[vertical]
+  useEffect(() => {
+    document.title = 'Hazento · Tu negocio, en orden'
+    const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]')
+    if (robots) robots.content = 'noindex, nofollow'
+    return () => { if (robots) robots.content = 'index, follow' }
+  }, [])
   const profileName = `${store.profile.firstName} ${store.profile.lastName}`.trim()
   const profileInitials = `${store.profile.firstName.charAt(0)}${store.profile.lastName.charAt(0)}`.toUpperCase() || 'HZ'
   const workspaceInitials = store.workspace.name.split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase() || 'HZ'

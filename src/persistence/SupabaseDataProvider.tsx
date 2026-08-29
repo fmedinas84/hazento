@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { AccountData, ActivityData, EngagementData, OpportunityData, OrganizationData, PaymentData, PaymentRequestData, PaymentRequestItemData, PrestationData } from '../data'
@@ -6,6 +6,8 @@ import { DataStoreContext, type DataState, type DataStore } from '../store'
 import type { AppointmentReminder, ReminderSettings, ReminderSyncContext } from '../reminders'
 import { defaultReminderSettings } from '../reminders'
 import type { Database } from '../types/database.types'
+import { PublicLanding } from '../public/PublicLanding'
+import type { AuthMode } from '../auth/AuthForm'
 
 type Tables = Database['public']['Tables']
 type AccountRow = Tables['accounts']['Row']
@@ -29,6 +31,8 @@ const emptyState: DataState = {
   documents: [], documentPaymentAllocations: [], documentAdjustments: [], services: [], appointmentReminders: [],
   reminderSettings: defaultReminderSettings,
 }
+const publicPaths = new Set(['/', '/login', '/register', '/forgot-password', '/reset-password'])
+const isPublicLocation = () => publicPaths.has(window.location.pathname)
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()
 const money = (value: number | null) => `$${Math.round(Number(value || 0)).toLocaleString('es-CL')}`
@@ -69,52 +73,6 @@ const prestationStatusToDb: Record<string,string> = { Borrador:'draft',Pendiente
 const activityStatusFromDb: Record<string,string> = { pending:'Pendiente',completed:'Completada',cancelled:'Cancelada' }
 const activityStatusToDb: Record<string,string> = { Pendiente:'pending',Vencida:'pending',Completada:'completed',Cancelada:'cancelled' }
 const activityTypeToDb: Record<string,string> = { Tarea:'task',Llamada:'call',Reunión:'meeting',Email:'email',WhatsApp:'whatsapp',Nota:'note',Hito:'milestone' }
-
-type AuthMode = 'login'|'signup'|'forgot'|'update'
-
-function AuthPanel({ recoveryMode, onReady, onRecoveryComplete }: { recoveryMode: boolean; onReady: (user: User) => void; onRecoveryComplete: () => void }) {
-  const [mode, setMode] = useState<AuthMode>(recoveryMode ? 'update' : 'login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [passwordConfirmation, setPasswordConfirmation] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  useEffect(() => { if (recoveryMode) setMode('update') }, [recoveryMode])
-  const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (!supabase || busy) return
-    setBusy(true); setError(''); setNotice('')
-    try {
-      if (mode === 'forgot') {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
-        if (resetError) throw resetError
-        setNotice('Te enviamos un enlace para crear una nueva contraseña. Revisa tu correo.')
-        return
-      }
-      if (mode === 'update') {
-        if (password !== passwordConfirmation) { setError('Las contraseñas no coinciden.'); return }
-        const { data, error: updateError } = await supabase.auth.updateUser({ password })
-        if (updateError) throw updateError
-        setNotice('Tu contraseña fue actualizada correctamente.')
-        onRecoveryComplete()
-        if (data.user) onReady(data.user)
-        return
-      }
-      const result = mode === 'login'
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })
-      if (result.error) throw result.error
-      if (result.data.session?.user) onReady(result.data.session.user)
-      else if (mode === 'signup') setNotice('Cuenta creada. Revisa tu correo para confirmar tu email antes de ingresar.')
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : ''
-      setError(message.includes('Invalid login') ? 'Email o contraseña incorrectos.' : 'No pudimos completar esta acción. Inténtalo nuevamente.')
-    } finally { setBusy(false) }
-  }
-  const title = mode === 'login' ? 'Inicia sesión' : mode === 'signup' ? 'Crea tu cuenta' : mode === 'forgot' ? 'Recupera tu contraseña' : 'Crea una nueva contraseña'
-  const submitLabel = mode === 'login' ? 'Ingresar' : mode === 'signup' ? 'Crear cuenta' : mode === 'forgot' ? 'Enviar enlace' : 'Actualizar contraseña'
-  return <main className="auth-shell"><form className="card auth-card" onSubmit={submit}><span className="section-kicker">HAZENTO</span><h1>{title}</h1><p>{mode === 'forgot' ? 'Te enviaremos un enlace seguro para continuar.' : mode === 'update' ? 'Elige una contraseña de al menos 8 caracteres.' : 'Accede a tu espacio de trabajo seguro.'}</p>{mode !== 'update' && <label><span>Email</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"/></label>}{mode !== 'forgot' && <label><span>{mode === 'update' ? 'Nueva contraseña' : 'Contraseña'}</span><input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}/></label>}{mode === 'update' && <label><span>Confirmar nueva contraseña</span><input type="password" value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} required minLength={8} autoComplete="new-password"/></label>}{error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}<button className="primary-btn" disabled={busy}>{busy ? 'Procesando...' : submitLabel}</button>{mode === 'login' && <><button className="text-btn" type="button" onClick={() => { setMode('forgot'); setError(''); setNotice('') }}>Olvidé mi contraseña</button><button className="text-btn" type="button" onClick={() => { setMode('signup'); setError(''); setNotice('') }}>Crear una cuenta</button></>}{(mode === 'signup' || mode === 'forgot') && <button className="text-btn" type="button" onClick={() => { setMode('login'); setError(''); setNotice('') }}>Volver a iniciar sesión</button>}</form></main>
-}
 
 function mapAccount(row: AccountRow): AccountData {
   return { id: row.id, workspaceId: row.workspace_id, initials: initials(row.display_name), name: row.display_name, displayName: row.display_name, firstName: optional(row.first_name), lastName: optional(row.last_name), organizationId: optional(row.organization_id), role: optional(row.role), type: 'Persona', status: accountStatusFromDb[row.status] || row.status, last: formatDate(row.updated_at), next: '—', income: '$0', pending: '$0', email: optional(row.email), phone: row.phone || '', rut: row.tax_id || '', legalName: optional(row.legal_name), address: optional(row.address_line), city: optional(row.city), commune: optional(row.commune), notes: optional(row.notes), color: '#e6efeb', createdAt: row.created_at, updatedAt: row.updated_at, archivedAt: optional(row.archived_at) }
@@ -172,14 +130,14 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     } catch (cause) { setError(friendlyError(cause)); setStatus('error') }
   }, [])
 
-  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } if (session?.user) { setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(session.user); queueMicrotask(() => void load(session.user)) } else { setUser(null); setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
+  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user && !isPublicLocation()) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } if (session?.user) { setUser(session.user); if (event === 'INITIAL_SESSION' && isPublicLocation()) { setStatus('ready'); return } setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); queueMicrotask(() => void load(session.user)) } else { setUser(null); setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
 
   const requireContext = () => { if (!supabase || !workspaceId) throw new Error('No existe un workspace activo.'); return { client: supabase, workspaceId } }
   const refresh = async () => { if (user) await load(user) }
   const mutate = async <T,>(operation: () => PromiseLike<{ data: T | null; error: { message: string } | null }>, after?: (data: T) => void) => { const result = await operation(); if (result.error || result.data == null) throw new Error(result.error?.message || 'No se recibieron datos.'); after?.(result.data); return result.data }
 
   const value = useMemo<DataStore>(() => ({ ...state, repositoryStatus: status, repositoryError: error, retryRepository: () => { if (user) void load(user) },
-    async signOut() { if (!supabase) return; const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw new Error('No pudimos cerrar la sesión. Inténtalo nuevamente.') },
+    async signOut() { if (!supabase) return; const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw new Error('No pudimos cerrar la sesión. Inténtalo nuevamente.'); window.history.replaceState({}, '', '/') },
     async updateProfile(changes) { const { client }=requireContext(); await mutate(() => client.from('profiles').update({ first_name: changes.firstName, last_name: changes.lastName, phone: changes.phone }).eq('id', user!.id).select().single()); await refresh() },
     async updateWorkspace(changes) { const {client,workspaceId}=requireContext(); await mutate(() => client.from('workspaces').update({ name: changes.name, address_line: changes.address, country_code: changes.country === 'Chile' ? 'CL' : changes.country, currency_code: changes.currency, timezone: changes.timezone, vertical_type: changes.vertical }).eq('id',workspaceId).select().single()); await refresh() },
     async addAccount(record) { const {client,workspaceId}=requireContext(); const row=await mutate(() => client.from('accounts').insert({workspace_id:workspaceId,account_type:'person',status:accountStatusToDb[record.status]||'prospect',display_name:record.name,first_name:record.firstName||null,last_name:record.lastName||null,email:record.email?.trim().toLowerCase()||null,phone:record.phone||null,tax_id:record.rut||null,organization_id:record.organizationId||null,role:record.role||null}).select().single()); const created=mapAccount(row); await refresh(); return created },
@@ -206,6 +164,20 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     async updateService(id,changes){const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({name:changes.name,description:changes.description,default_duration_minutes:changes.duration?parseInt(changes.duration):undefined,default_price:changes.price?parseMoney(changes.price):undefined,active:changes.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async toggleService(id){const current=state.services.find(item=>item.id===id);if(!current)return;const{client,workspaceId}=requireContext();await mutate(()=>client.from('services').update({active:!current.active}).eq('workspace_id',workspaceId).eq('id',id).select().single());await refresh()},async resetDemo(){throw new Error('Restaurar datos demo no está disponible en modo Supabase.')},
   }), [state,status,error,user,workspaceId,load])
 
-  if (!user || passwordRecovery) return <AuthPanel recoveryMode={passwordRecovery} onReady={nextUser => { setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(nextUser) }} onRecoveryComplete={() => setPasswordRecovery(false)}/>
+  const publicModes: Record<string, AuthMode> = { '/login': 'login', '/register': 'signup', '/forgot-password': 'forgot', '/reset-password': 'update' }
+  const pathname = window.location.pathname
+  const isPublicPath = pathname === '/' || pathname in publicModes
+  const onAuthenticated = (nextUser: User) => {
+    setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(nextUser)
+    const next = new URLSearchParams(window.location.search).get('next')
+    window.history.replaceState({}, '', next?.startsWith('/') && !next.startsWith('//') ? next : '/app')
+  }
+  if (passwordRecovery) return <PublicLanding user={user} initialAuthMode="update" recoveryMode onAuthenticated={onAuthenticated} onRecoveryComplete={() => setPasswordRecovery(false)} authOnly/>
+  if (isPublicPath) return <PublicLanding user={user} initialAuthMode={publicModes[pathname] || 'login'} onAuthenticated={onAuthenticated} authOnly={pathname !== '/'}/>
+  if (!user) {
+    const next = `${pathname}${window.location.search}`
+    window.history.replaceState({}, '', `/login?next=${encodeURIComponent(next)}`)
+    return <PublicLanding initialAuthMode="login" onAuthenticated={onAuthenticated} authOnly/>
+  }
   return <DataStoreContext.Provider value={value}>{children}</DataStoreContext.Provider>
 }
