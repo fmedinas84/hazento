@@ -133,6 +133,11 @@ function EmptyState({ title, body, action, onAction }: { title: string; body: st
 }
 
 function Modal({ title, subtitle, onClose, children, wide }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
   return <div className="modal-backdrop" onMouseDown={onClose}><section className={cls('modal', wide && 'modal-wide')} role="dialog" aria-modal="true" aria-label={title} onMouseDown={e => e.stopPropagation()}>
     <header><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={19} /></button></header>{children}
   </section></div>

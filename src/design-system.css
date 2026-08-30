@@ -241,7 +241,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   background: var(--danger-subtle); color: var(--danger);
 }
 .metric-icon, .empty-state .empty-icon, .choice-icon, .work-icon, .service-icon,
-.billing-section-icon, .date-box {
+.billing-section-icon, .date-box, .attention-icon {
   background: var(--accent-subtle);
   color: var(--primary);
 }
@@ -263,6 +263,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .opportunity-value span { color: var(--primary); }
 .planning-today, .calendar-today { color: var(--primary); }
 .skeleton-bone { background-color: var(--surface-subtle); }
+
+/* Module accents keep business semantics while sharing the brand language. */
+.dashboard-create-card {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 22px rgba(38,79,56,.16);
+}
+.dashboard-create-card:hover { background: var(--primary-hover); }
+.dashboard-create-icon { background: var(--surface); color: var(--primary); }
+.legend-dot.income { background: var(--primary); }
+.agenda-dot.violet, .stage-dot.propuesta { background: var(--accent); }
+.planning-month-event, .calendar-event { border-radius: var(--radius-xs); }
+.month-calendar, .calendar, .planning-board { background: var(--surface); border-color: var(--border); }
+.calendar-toolbar, .calendar-head, .planning-toolbar { background: var(--surface-subtle); }
+.calendar-nav button:hover, .planning-toolbar button:hover { background: var(--surface-warm); }
+.agenda-payment-request, .tax-warning, .calendar-payment-indicator {
+  background: var(--warning-subtle);
+  border-color: #dec9a8;
+  color: var(--warning);
+}
+.request-context, .request-summary p, .document-totals p { background: var(--surface-subtle); }
+.choice-inline button.active { background: var(--primary); color: var(--primary-foreground); }
+.future-request-actions button { background: var(--surface-subtle); border-color: var(--border-strong); }
+.request-cancel:hover { color: var(--danger); }
+.closed-opportunity-lane.won { border-left-color: var(--success); }
+.closed-opportunity-lane.lost { border-left-color: var(--danger); }
+.win-btn { background: var(--success-subtle); color: var(--success); }
+.opportunity-status-actions button.won { background: var(--success-subtle); color: var(--success); }
+.opportunity-status-actions button.lost { background: var(--danger-subtle); color: var(--danger); }
+.integration-icon { background: var(--info-subtle); color: var(--info); }
+.checkout-brick-slot svg { color: var(--primary); }
+.reminder-demo-control { background: var(--warning-subtle); }
 
 /* Settings and billing */
 .settings-card, .billing-section, .billing-plan, .integration-card,
