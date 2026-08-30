@@ -1,11 +1,11 @@
-.public-hero{min-height:620px}
-.public-hero-media{min-height:620px}
+.public-hero{position:relative;min-height:620px}
+.public-hero-media{grid-row:1;grid-column:1/-1;min-height:620px}
 .public-hero-media:after{background:linear-gradient(90deg,rgba(10,14,11,.88) 0%,rgba(10,14,11,.66) 42%,rgba(10,14,11,.16) 70%,transparent)}
 .public-hero-copy{width:min(680px,68%);padding:clamp(64px,7vw,100px) 0 54px clamp(28px,5.5vw,84px)}
 .public-hero-copy h1{max-width:650px;margin:18px 0 22px;font-size:clamp(42px,3.7vw,58px);line-height:1.07;letter-spacing:-2px}
 .public-hero-copy p{max-width:610px;line-height:1.58}
 .public-hero-copy ul{margin-top:24px;gap:9px;font-size:15px}
-.public-hero-access{padding-top:36px;padding-bottom:36px}
+.public-hero-access{z-index:2;grid-row:1;grid-column:2;padding-top:36px;padding-bottom:36px;background:transparent}
 .public-login-card{padding:30px}
 .auth-form{gap:16px}
 .auth-mode-tabs{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:10px;background:#f0f1ed}
@@ -33,6 +33,9 @@
 .public-profession-grid h3{margin:18px 0 9px;font-size:21px;line-height:1.25}
 .public-profession-grid p{margin:0;color:var(--public-muted);font-size:15px;line-height:1.55}
 .public-professions-note{margin:30px auto 0;color:var(--public-green);font-size:15px;font-weight:700;text-align:center}
+.public-how li{padding-right:34px;padding-left:34px}
+.public-how li p{font-size:15px}
+.public-step-benefit{margin-top:18px!important;padding-top:17px;border-top:1px solid rgba(38,79,56,.18);color:var(--public-green)!important;font-size:14px!important;font-weight:700}
 
 @media(max-width:1050px){
   .public-hero-copy{width:78%;padding-left:38px}
@@ -42,6 +45,7 @@
 
 @media(max-width:760px){
   .public-hero,.public-hero-media{min-height:0}
+  .public-hero-access{background:#f3ede4}
   .public-hero-copy{width:100%;padding:44px 20px 30px}
   .public-hero-copy h1{margin:14px 0 17px;font-size:39px;line-height:1.08;letter-spacing:-1.4px}
   .public-hero-copy p{font-size:16px}
@@ -51,6 +55,7 @@
   .public-pain-grid,.public-profession-grid{grid-template-columns:1fr}
   .public-pain-grid article,.public-profession-grid article{padding:22px}
   .public-professions-note{text-align:left}
+  .public-how li{padding-right:14px;padding-left:30px}
 }
 
 @media(max-width:390px){

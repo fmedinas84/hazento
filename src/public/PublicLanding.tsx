@@ -46,9 +46,9 @@ const painPoints = [
 ]
 
 const steps = [
-  { title: 'Registra a tu cliente una vez', text: 'Mantén sus datos, organización e historial en una ficha centralizada.' },
-  { title: 'Organiza el trabajo que haces', text: 'Crea atenciones, clases, proyectos, entregables u oportunidades.' },
-  { title: 'Haz seguimiento y cobra', text: 'Revisa pendientes, genera solicitudes de pago y registra lo recibido.' },
+  { title: 'Registra cada atención', text: 'Guarda quién fue atendido, cuándo, qué servicio realizaste, cuánto debes cobrar y cuál es el próximo paso.', benefit: 'Toda la información queda vinculada al cliente, sin volver a buscarla en mensajes o planillas.' },
+  { title: 'Visualiza tu semana', text: 'Revisa tus próximas atenciones, clases, entregas y seguimientos desde una misma agenda.', benefit: 'Ordena tus prioridades, detecta espacios disponibles y comienza cada día sabiendo qué viene.' },
+  { title: 'Haz seguimiento y cobra', text: 'Registra la próxima acción, genera solicitudes de pago y controla lo recibido y lo que sigue pendiente.', benefit: 'Evita seguimientos olvidados y mantén claridad sobre el trabajo realizado y sus cobros.' },
 ]
 
 const professions = [
@@ -142,7 +142,7 @@ export function PublicLanding({ user, initialAuthMode = 'login', recoveryMode = 
 
       <section className="public-section public-professions" aria-labelledby="professions-title"><div className="public-section-heading"><span>Un sistema que se adapta</span><h2 id="professions-title">Hazento se adapta a la forma en que trabajas</h2><p>Un mismo sistema, con el lenguaje y la organización que necesita tu actividad.</p></div><div className="public-profession-grid">{professions.map(({ icon: Icon, title, text }) => <article key={title}><Icon size={24}/><h3>{title}</h3><p>{text}</p></article>)}</div><p className="public-professions-note">Configura Hazento una vez y trabaja con las palabras que ya usas todos los días.</p></section>
 
-      <section className="public-section public-how" id="como-funciona" aria-labelledby="how-title"><div className="public-section-heading"><span>Cómo funciona</span><h2 id="how-title">Organiza tu trabajo en tres pasos</h2></div><ol>{steps.map((step, index) => <li key={step.title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{step.title}</h3><p>{step.text}</p></li>)}</ol></section>
+      <section className="public-section public-how" id="como-funciona" aria-labelledby="how-title"><div className="public-section-heading"><span>Cómo funciona</span><h2 id="how-title">De cada atención al cobro, todo conectado</h2><p>Hazento reúne lo que haces, lo que viene y lo que todavía tienes pendiente.</p></div><ol>{steps.map((step, index) => <li key={step.title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{step.title}</h3><p>{step.text}</p><p className="public-step-benefit">{step.benefit}</p></li>)}</ol></section>
 
       <section className="public-section public-pricing" id="planes" aria-labelledby="plans-title"><div className="public-section-heading"><span>Planes simples</span><h2 id="plans-title">Empieza gratis. Avanza cuando lo necesites.</h2><p>Organiza lo esencial desde el primer día y activa Plus cuando tu forma de trabajar lo necesite.</p></div><div className="public-plan-grid"><PricingCard planId="free" user={user} onChoose={choosePlan}/><PricingCard planId="plus" user={user} onChoose={choosePlan}/></div></section>
 
