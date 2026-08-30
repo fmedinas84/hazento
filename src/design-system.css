@@ -148,7 +148,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
 }
-.card-heading h2, .empty-state h3, .next-card h3, .info-card h3,
+.card-heading h2, .settings-heading h2, .billing-settings-heading h2,
+.integrations-heading h2, .reminder-settings-heading h2,
+.empty-state h3, .next-card h3, .info-card h3,
 .detail-fields h3, .mini-finance h3, .opportunity-card h3,
 .engagement-card h3, .billing-section-heading h3, .integration-title h3,
 .document-detail h2, .document-detail section h3 {

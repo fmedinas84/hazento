@@ -102,3 +102,22 @@ Los estados se agrupan por significado: éxito, advertencia, peligro e informaci
 - Sombras grandes en contenido estático.
 - Estados comunicados únicamente mediante color.
 - Espaciado propio por módulo cuando existe un patrón compartido.
+
+## Validación de la migración visual
+
+Se revisaron Landing/Login, Dashboard, Personas, ficha 360, Agenda, Oportunidades, Tratamientos, Pagos, Configuración, Facturación y un modal representativo. La inspección se realizó en 360, 390, 768, 1024, 1366 y 1440 px sin detectar overflow horizontal global ni errores de consola.
+
+Las capturas anteriores de la auditoría permanecen en `docs/evidence/`. La comparación posterior confirmó el nuevo shell verde, títulos editoriales, cards cálidas, controles coherentes y adaptación mobile en cards.
+
+### Rendimiento visual
+
+La hoja CSS de producción pasó de 131,11 kB (24,63 kB gzip) a 142,47 kB (27,08 kB gzip): +11,36 kB, o +2,45 kB transferidos. No se agregó ninguna dependencia. El warning existente del chunk de gráficos continúa sin cambios funcionales y queda fuera del alcance de esta migración visual.
+
+### Accesibilidad verificada
+
+- Un solo `h1` en la landing.
+- Foco global visible mediante token semántico.
+- Estados mantienen texto además de color.
+- Controles táctiles y layout mobile sin desbordamiento global.
+- Modales cerrables mediante botón, backdrop y tecla `Escape`.
+- Movimiento reducido mediante `prefers-reduced-motion`.
