@@ -12,3 +12,4 @@
 /* Activation funnel: one conversion reference per stage */
 .funnel{gap:14px}.funnel-step{gap:0}.funnel-row{gap:7px}.funnel-row>div:first-child{gap:3px}.funnel-row>div:first-child span{font-size:11px}
 @media(max-width:390px){.funnel{gap:12px}.funnel-row>div:first-child span{font-size:10px}}
+.brand-mark{overflow:hidden;padding:0}.brand-mark img{display:block;width:100%;height:100%;object-fit:cover}
