@@ -90,7 +90,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   overflow: hidden;
   padding: 0;
 }
-.brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .brand > b {
   color: var(--primary-foreground);
   font-family: var(--font-editorial);
