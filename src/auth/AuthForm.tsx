@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useId, useState } from 'react'
+import { FormEvent, useEffect, useId, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -11,6 +11,7 @@ type AuthFormProps = {
   onModeChange?: (mode: AuthMode) => void
   onRecoveryComplete?: () => void
   compact?: boolean
+  planIntent?: 'free' | 'plus' | null
 }
 
 const authErrorMessage = (cause: unknown) => {
@@ -22,7 +23,7 @@ const authErrorMessage = (cause: unknown) => {
   return 'No pudimos completar esta acción. Inténtalo nuevamente.'
 }
 
-export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange, onRecoveryComplete, compact = false }: AuthFormProps) {
+export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange, onRecoveryComplete, compact = false, planIntent = null }: AuthFormProps) {
   const [mode, setModeState] = useState<AuthMode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,6 +33,7 @@ export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange,
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const errorId = useId()
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => setModeState(initialMode), [initialMode])
 
@@ -70,7 +72,7 @@ export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange,
       }
       const result = mode === 'login'
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/app` } })
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${planIntent === 'plus' ? '/configuracion?tab=Facturación' : '/app'}` } })
       if (result.error) throw result.error
       if (result.data.session?.user) onAuthenticated?.(result.data.session.user)
       else if (mode === 'signup') setNotice('Cuenta creada. Revisa tu correo para confirmar tu email antes de ingresar.')
@@ -82,18 +84,19 @@ export function AuthForm({ initialMode = 'login', onAuthenticated, onModeChange,
     }
   }
 
-  const title = mode === 'login' ? 'Bienvenido a Hazento' : mode === 'signup' ? 'Crea tu cuenta gratis' : mode === 'forgot' ? 'Recupera tu contraseña' : 'Crea una nueva contraseña'
+  const title = mode === 'login' ? 'Entra a tu espacio de trabajo' : mode === 'signup' && planIntent === 'plus' ? 'Crea tu cuenta para comenzar con Hazento Plus' : mode === 'signup' ? 'Crea tu cuenta gratis' : mode === 'forgot' ? 'Recupera tu contraseña' : 'Crea una nueva contraseña'
   const submitLabel = mode === 'login' ? 'Ingresar' : mode === 'signup' ? 'Crear cuenta gratis' : mode === 'forgot' ? 'Enviar enlace' : 'Actualizar contraseña'
 
   return <form className={`auth-form${compact ? ' auth-form-compact' : ''}`} onSubmit={submit} aria-describedby={error ? errorId : undefined}>
-    <div className="auth-form-heading"><h2>{title}</h2><p>{mode === 'forgot' ? 'Te enviaremos un enlace seguro para continuar.' : mode === 'update' ? 'Elige una contraseña de al menos 8 caracteres.' : mode === 'signup' ? 'Empieza sin tarjeta de crédito.' : 'Accede a tu espacio de trabajo.'}</p></div>
+    {(mode === 'login' || mode === 'signup') && <div className="auth-mode-tabs" role="group" aria-label="Acceso a Hazento"><button type="button" aria-pressed={mode === 'login'} onClick={() => setMode('login')}>Ingresar</button><button type="button" aria-pressed={mode === 'signup'} onClick={() => setMode('signup')}>Crear cuenta</button></div>}
+    <div className="auth-form-heading"><h2 ref={headingRef} data-auth-heading tabIndex={-1}>{title}</h2><p>{mode === 'forgot' ? 'Escribe tu correo y te enviaremos un enlace seguro para crear una nueva contraseña.' : mode === 'update' ? 'Elige una contraseña de al menos 8 caracteres.' : mode === 'signup' ? 'Empieza a organizar tu trabajo sin tarjeta de crédito.' : 'Revisa tus clientes, agenda y pendientes.'}</p></div>
     {mode !== 'update' && <label><span>Correo electrónico</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" inputMode="email" /></label>}
     {mode !== 'forgot' && <label><span>{mode === 'update' ? 'Nueva contraseña' : 'Contraseña'}</span><span className="password-field"><input type={showPassword ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} aria-invalid={Boolean(error)} /><button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}</button></span></label>}
     {mode === 'update' && <label><span>Confirmar nueva contraseña</span><input type="password" value={passwordConfirmation} onChange={event => setPasswordConfirmation(event.target.value)} required minLength={8} autoComplete="new-password" /></label>}
     {error && <p className="form-error" id={errorId} role="alert">{error}</p>}
     {notice && <p className="form-notice" role="status">{notice}</p>}
     <button className="public-primary" disabled={busy}>{busy ? 'Procesando…' : submitLabel}</button>
-    {mode === 'login' && <div className="auth-form-links"><button type="button" onClick={() => setMode('forgot')}>¿Olvidaste tu contraseña?</button><span aria-hidden="true">o</span><button type="button" className="auth-register-link" onClick={() => setMode('signup')}>Crear cuenta gratis</button></div>}
+    {mode === 'login' && <div className="auth-form-links"><button type="button" onClick={() => setMode('forgot')}>¿Olvidaste tu contraseña?</button><span>¿Aún no usas Hazento?</span><button type="button" className="auth-register-link" onClick={() => setMode('signup')}>Crea tu cuenta gratis</button></div>}
     {(mode === 'signup' || mode === 'forgot') && <button className="auth-back-link" type="button" onClick={() => setMode('login')}>Volver a iniciar sesión</button>}
     {mode === 'signup' && <small className="auth-no-card">Sin tarjeta de crédito</small>}
   </form>
