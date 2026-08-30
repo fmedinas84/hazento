@@ -4,3 +4,7 @@
 @media(max-width:390px){.public-hero-copy h1{font-size:36px}.public-mobile-actions{grid-template-columns:1fr}.public-hero-media picture{height:230px}.public-section-heading h2{font-size:32px}.public-pain-grid article{gap:12px}.public-pain-grid h3{font-size:19px}.public-final-cta h2{font-size:34px}.public-footer{gap:20px}.public-footer nav{justify-content:space-between}.public-login-card{padding:20px}}
 @media(prefers-reduced-motion:reduce){.public-page *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 .public-footer nav a,.public-footer nav button,.public-header .public-text-action,.auth-form-links button{min-height:44px;display:flex;align-items:center;justify-content:center}
+/* Hazento wordmark used by the public header and footer. */
+.public-brand{display:inline-flex;align-items:center;flex:none;letter-spacing:normal}
+.public-brand img{display:block;width:clamp(118px,10vw,148px);height:auto;max-height:48px;object-fit:contain}
+.public-brand-text{font-family:Georgia,'Times New Roman',serif;font-size:29px;font-weight:700;letter-spacing:-1.2px}

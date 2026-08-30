@@ -27,7 +27,7 @@ function PublicHeader({ user, onOpenAuth }: { user?: User | null; onOpenAuth: (m
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   return <header className="public-header">
-    <a className="public-brand" href="/" aria-label="Hazento, inicio">Hazento</a>
+    <a className="public-brand" href="/" aria-label="Hazento, inicio"><img src="/images/hazento-logo.png" alt="Hazento" /></a>
     <button className="public-menu-toggle" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={open} aria-controls="public-navigation" onClick={() => setOpen(value => !value)}>{open ? <X/> : <Menu/>}</button>
     <nav id="public-navigation" className={open ? 'open' : ''} aria-label="Navegación pública">
       <a href="#como-funciona" onClick={close}>Cómo funciona</a>
@@ -148,6 +148,6 @@ export function PublicLanding({ user, initialAuthMode = 'login', recoveryMode = 
 
       <section className="public-final-cta"><div><span>Haz espacio para tu trabajo</span><h2>Ordena hoy el trabajo que hace crecer tu negocio</h2><p>Empieza gratis y lleva clientes, agenda y pagos desde un solo lugar.</p></div><div><button className="public-primary" onClick={() => user ? navigate('/app') : openAuth('signup', 'free')}>{user ? 'Ir a Hazento' : 'Crear cuenta gratis'}</button><button className="public-secondary" onClick={() => document.getElementById('planes')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>Conocer Hazento Plus</button></div></section>
     </main>
-    <footer className="public-footer"><a className="public-brand" href="/">Hazento</a><nav aria-label="Enlaces del pie"><a href="#planes">Planes</a>{user ? <button onClick={() => navigate('/app')}>Ir a Hazento</button> : <button onClick={() => openAuth('login')}>Ingreso</button>}</nav><small>© {new Date().getFullYear()} Hazento</small></footer>
+    <footer className="public-footer"><a className="public-brand public-brand-text" href="/" aria-label="Hazento, inicio">Hazento</a><nav aria-label="Enlaces del pie"><a href="#planes">Planes</a>{user ? <button onClick={() => navigate('/app')}>Ir a Hazento</button> : <button onClick={() => openAuth('login')}>Ingreso</button>}</nav><small>© {new Date().getFullYear()} Hazento</small></footer>
   </div>
 }

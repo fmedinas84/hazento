@@ -5,6 +5,7 @@ import { SupabaseDataProvider } from './persistence/SupabaseDataProvider'
 import { dataSource } from './persistence/dataSource'
 import { PublicLanding } from './public/PublicLanding'
 import './styles.css'
+import './design-system.css'
 import './public/public.css'
 import './public/public-refinement.css'
 
