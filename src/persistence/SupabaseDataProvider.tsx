@@ -90,6 +90,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DataState>(emptyState)
   const [workspaceId, setWorkspaceId] = useState<string|null>(null)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [locationPath, setLocationPath] = useState(() => window.location.pathname)
   const [status, setStatus] = useState<'loading'|'ready'|'error'>('loading')
   const [error, setError] = useState<string|null>(null)
 
@@ -131,6 +132,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user && !isPublicLocation()) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } if (session?.user) { setUser(session.user); if (event === 'INITIAL_SESSION' && isPublicLocation()) { setStatus('ready'); return } setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); queueMicrotask(() => void load(session.user)) } else { setUser(null); setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
+  useEffect(() => { const syncLocation = () => setLocationPath(window.location.pathname); window.addEventListener('popstate', syncLocation); return () => window.removeEventListener('popstate', syncLocation) }, [])
 
   const requireContext = () => { if (!supabase || !workspaceId) throw new Error('No existe un workspace activo.'); return { client: supabase, workspaceId } }
   const refresh = async () => { if (user) await load(user) }
@@ -165,12 +167,16 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   }), [state,status,error,user,workspaceId,load])
 
   const publicModes: Record<string, AuthMode> = { '/login': 'login', '/register': 'signup', '/forgot-password': 'forgot', '/reset-password': 'update' }
-  const pathname = window.location.pathname
+  const pathname = locationPath
   const isPublicPath = pathname === '/' || pathname in publicModes
   const onAuthenticated = (nextUser: User) => {
     setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(nextUser)
-    const next = new URLSearchParams(window.location.search).get('next')
-    window.history.replaceState({}, '', next?.startsWith('/') && !next.startsWith('//') ? next : '/app')
+    const params = new URLSearchParams(window.location.search)
+    const next = params.get('next')
+    const planIntent = params.get('plan')
+    const destination = next?.startsWith('/') && !next.startsWith('//') ? next : planIntent === 'plus' ? '/configuracion?tab=Facturación' : '/app'
+    window.history.replaceState({}, '', destination)
+    setLocationPath(destination.split('?')[0])
   }
   if (passwordRecovery) return <PublicLanding user={user} initialAuthMode="update" recoveryMode onAuthenticated={onAuthenticated} onRecoveryComplete={() => setPasswordRecovery(false)} authOnly/>
   if (isPublicPath) return <PublicLanding user={user} initialAuthMode={publicModes[pathname] || 'login'} onAuthenticated={onAuthenticated} authOnly={pathname !== '/'}/>
