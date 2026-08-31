@@ -42,6 +42,7 @@ import {
   type ReminderSettings,
   type ReminderSyncContext,
 } from './reminders'
+import type { CountryCode, WorkspaceCurrency } from './countries'
 
 export type Account = AccountData
 export type Contact = ContactData
@@ -60,7 +61,7 @@ export type DocumentPaymentAllocation = DocumentPaymentAllocationData
 export type DocumentAdjustment = DocumentAdjustmentData
 export type Service = (typeof seedServices)[number]
 export type ProfileSettings = { firstName: string; lastName: string; email: string; phone: string }
-export type WorkspaceSettings = { name: string; address: string; country: string; currency: string; timezone: string; vertical?: import('./data').Vertical }
+export type WorkspaceSettings = { name: string; address: string; countryCode: CountryCode; currency: WorkspaceCurrency; timezone: string; vertical?: import('./data').Vertical }
 
 const seedAppointmentReminders: AppointmentReminder[] = [{
   id: '1',
@@ -142,11 +143,11 @@ export type DataStore = DataState & {
 }
 
 const STORAGE_KEY = 'hazento-demo-v4'
-const DEMO_SCHEMA_VERSION = 5
+const DEMO_SCHEMA_VERSION = 6
 const colors = ['#dff5e8', '#ede9ff', '#fff0d8', '#dceeff', '#f5e6f0']
 const seedState: DataState = {
   profile: { firstName: 'Francisca', lastName: 'Medina', email: 'francisca@hazento.cl', phone: '+56 9 1234 5678' },
-  workspace: { name: 'Consulta Demo', address: 'Av. Providencia 1234, Santiago', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
+  workspace: { name: 'Consulta Demo', address: 'Av. Providencia 1234, Santiago', countryCode: 'CL', currency: 'CLP', timezone: 'America/Santiago' },
   accounts: seedAccounts,
   organizations: seedOrganizations,
   contacts: seedContacts,

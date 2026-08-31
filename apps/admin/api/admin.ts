@@ -18,7 +18,7 @@ type Response = {
 }
 
 type ProfileRow = { id: string; first_name: string | null; last_name: string | null; created_at: string }
-type WorkspaceRow = { id: string; name: string; vertical_type: string; created_at: string; updated_at: string }
+type WorkspaceRow = { id: string; name: string; vertical_type: string; country_code: string; created_at: string; updated_at: string }
 type MemberRow = { user_id: string; workspace_id: string; role: string; created_at: string }
 type SubscriptionRow = {
   workspace_id: string
@@ -191,7 +191,7 @@ async function listAuthUsers(client: ServiceClient): Promise<AuthUserRow[]> {
 async function loadAdminDataset(client: ServiceClient) {
   const [profilesResult, workspacesResult, membersResult, subscriptionsResult, failedRemindersResult, authUsers, accounts, prestations, opportunities, engagements, activities, paymentRequests, payments] = await Promise.all([
     client.from('profiles').select('id,first_name,last_name,created_at'),
-    client.from('workspaces').select('id,name,vertical_type,created_at,updated_at'),
+    client.from('workspaces').select('id,name,vertical_type,country_code,created_at,updated_at'),
     client.from('workspace_members').select('user_id,workspace_id,role,created_at'),
     client.from('subscriptions').select('workspace_id,plan,status,provider,current_period_start,next_payment_date,created_at,updated_at'),
     client.from('appointment_reminders').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
@@ -382,6 +382,7 @@ function buildUserDetail(dataset: Awaited<ReturnType<typeof loadAdminDataset>>, 
   return {
     ...user,
     workspaceName: workspace?.name ?? 'Workspace sin nombre',
+    countryCode: workspace?.country_code ?? 'CL',
     subscription: {
       plan: user.plan,
       status: subscription?.status ?? 'free',
@@ -506,10 +507,11 @@ function subscriptionsFromUsage(input: Awaited<ReturnType<typeof loadUsage>>, us
   })
 }
 
-function userDetailFromUsage(row: UsageRow, user: UserSummary): UserDetail {
+function userDetailFromUsage(row: UsageRow, user: UserSummary, countryCode: string): UserDetail {
   return {
     ...user,
     workspaceName: row.workspace_name,
+    countryCode,
     subscription: { plan: user.plan, status: row.subscription_status, startedAt: row.subscription_started_at, nextPaymentAt: row.next_payment_at, provider: row.provider, updatedAt: row.subscription_updated_at },
     milestones: { accountCreatedAt: user.registeredAt, firstClientAt: row.first_client_at, firstPrestationAt: row.first_prestation_at, firstPaymentAt: row.first_payment_at },
   }
@@ -608,9 +610,13 @@ export default async function handler(req: Request, res: Response) {
       const user = users.find((item) => item.userId === userId && item.workspaceId === workspaceId)
       const row = usage.rows.find((item) => item.user_id === userId && item.workspace_id === workspaceId)
       if (!user || !row) return respond(404, { message: 'Usuario no encontrado.' })
-      await audit(authorization.client, authorization.user.id, 'user_viewed', 'workspace', workspaceId)
-      metrics.queryCount += 1
-      return respond(200, { data: userDetailFromUsage(row, user) })
+      const [workspaceResult] = await Promise.all([
+        authorization.client.from('workspaces').select('country_code').eq('id', workspaceId).single(),
+        audit(authorization.client, authorization.user.id, 'user_viewed', 'workspace', workspaceId),
+      ])
+      metrics.queryCount += 2
+      if (workspaceResult.error) throw workspaceResult.error
+      return respond(200, { data: userDetailFromUsage(row, user, workspaceResult.data.country_code) })
     }
     return respond(404, { message: 'Recurso no encontrado.' })
   } catch (error) {
