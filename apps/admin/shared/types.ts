@@ -29,6 +29,7 @@ export type UserSummary = {
 
 export type UserDetail = UserSummary & {
   workspaceName: string
+  countryCode: string
   subscription: {
     plan: 'free' | 'plus'
     status: string

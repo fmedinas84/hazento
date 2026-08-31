@@ -8,6 +8,7 @@ import { defaultReminderSettings } from '../reminders'
 import type { Database } from '../types/database.types'
 import { PublicLanding } from '../public/PublicLanding'
 import type { AuthMode } from '../auth/AuthForm'
+import { enabledCountryCode, isCountryCode } from '../countries'
 
 type Tables = Database['public']['Tables']
 type AccountRow = Tables['accounts']['Row']
@@ -25,7 +26,7 @@ type ReminderRow = Tables['appointment_reminders']['Row']
 
 const emptyState: DataState = {
   profile: { firstName: '', lastName: '', email: '', phone: '' },
-  workspace: { name: '', address: '', country: 'Chile', currency: 'CLP', timezone: 'America/Santiago' },
+  workspace: { name: '', address: '', countryCode: 'CL', currency: 'CLP', timezone: 'America/Santiago' },
   accounts: [], organizations: [], contacts: [], opportunities: [], engagements: [], prestations: [], activities: [],
   payments: [], paymentAllocations: [], paymentRequests: [], paymentRequestItems: [], paymentRequestAllocations: [],
   documents: [], documentPaymentAllocations: [], documentAdjustments: [], services: [], appointmentReminders: [],
@@ -98,7 +99,8 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
     if (!supabase) { setStatus('error'); setError('Supabase staging no está configurado.'); return }
     setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null)
     try {
-      const { data: boot, error: bootError } = await supabase.rpc('bootstrap_user_workspace', { p_workspace_name: 'Mi negocio', p_vertical_type: 'health', p_first_name: '', p_last_name: '' })
+      const requestedCountry = enabledCountryCode(activeUser.user_metadata?.country_code) ?? 'CL'
+      const { data: boot, error: bootError } = await supabase.rpc('bootstrap_user_workspace', { p_workspace_name: 'Mi negocio', p_vertical_type: 'health', p_country_code: requestedCountry, p_first_name: '', p_last_name: '' })
       if (bootError) throw bootError
       const resolvedWorkspaceId = boot
       const [profileResult, workspaceResult, accountsResult, organizationsResult, servicesResult, opportunitiesResult, engagementsResult, prestationsResult, activitiesResult, requestsResult, requestItemsResult, paymentsResult, allocationsResult, remindersResult, subscriptionResult] = await Promise.all([
@@ -118,7 +120,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
       setWorkspaceId(resolvedWorkspaceId)
       setState({ ...emptyState,
         profile: { firstName: profile.first_name || activeUser.email?.split('@')[0] || '', lastName: profile.last_name || '', email: activeUser.email || '', phone: profile.phone || '' },
-        workspace: { name: workspace.name, address: workspace.address_line || '', country: workspace.country_code === 'CL' ? 'Chile' : workspace.country_code, currency: workspace.currency_code, timezone: workspace.timezone, vertical: workspace.vertical_type as DataState['workspace']['vertical'] },
+        workspace: { name: workspace.name, address: workspace.address_line || '', countryCode: isCountryCode(workspace.country_code) ? workspace.country_code : 'CL', currency: workspace.currency_code as DataState['workspace']['currency'], timezone: workspace.timezone, vertical: workspace.vertical_type as DataState['workspace']['vertical'] },
         reminderSettings: { emailEnabled: workspace.reminder_email_enabled, primaryLeadHours: workspace.reminder_primary_hours, secondaryEnabled: workspace.reminder_secondary_enabled, secondaryLeadHours: workspace.reminder_secondary_hours, entitlementMode: subscriptionResult.data?.plan === 'plus' && subscriptionResult.data.status === 'active' ? 'demo_plus' : 'free' },
         accounts, organizations: (organizationsResult.data || []).map(mapOrganization),
         services: (servicesResult.data || []).map((row: ServiceRow) => ({ id: row.id, name: row.name, description: row.description || '', duration: row.default_duration_minutes ? `${row.default_duration_minutes} min` : '—', price: money(row.default_price), active: row.active })),
@@ -141,7 +143,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DataStore>(() => ({ ...state, repositoryStatus: status, repositoryError: error, retryRepository: () => { if (user) void load(user) },
     async signOut() { if (!supabase) return; const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw new Error('No pudimos cerrar la sesión. Inténtalo nuevamente.'); window.history.replaceState({}, '', '/') },
     async updateProfile(changes) { const { client }=requireContext(); await mutate(() => client.from('profiles').update({ first_name: changes.firstName, last_name: changes.lastName, phone: changes.phone }).eq('id', user!.id).select().single()); await refresh() },
-    async updateWorkspace(changes) { const {client,workspaceId}=requireContext(); await mutate(() => client.from('workspaces').update({ name: changes.name, address_line: changes.address, country_code: changes.country === 'Chile' ? 'CL' : changes.country, currency_code: changes.currency, timezone: changes.timezone, vertical_type: changes.vertical }).eq('id',workspaceId).select().single()); await refresh() },
+    async updateWorkspace(changes) { const {client,workspaceId}=requireContext(); await mutate(() => client.from('workspaces').update({ name: changes.name, address_line: changes.address, timezone: changes.timezone, vertical_type: changes.vertical }).eq('id',workspaceId).select().single()); await refresh() },
     async addAccount(record) { const {client,workspaceId}=requireContext(); const row=await mutate(() => client.from('accounts').insert({workspace_id:workspaceId,account_type:'person',status:accountStatusToDb[record.status]||'prospect',display_name:record.name,first_name:record.firstName||null,last_name:record.lastName||null,email:record.email?.trim().toLowerCase()||null,phone:record.phone||null,tax_id:record.rut||null,organization_id:record.organizationId||null,role:record.role||null}).select().single()); const created=mapAccount(row); await refresh(); return created },
     async updateAccount(id, changes) { const {client,workspaceId}=requireContext(); await mutate(() => client.from('accounts').update({display_name:changes.name||changes.displayName,first_name:changes.firstName,last_name:changes.lastName,email:changes.email?.trim().toLowerCase(),phone:changes.phone,tax_id:changes.rut,organization_id:changes.organizationId===undefined?undefined:changes.organizationId||null,role:changes.role,status:changes.status?accountStatusToDb[changes.status]:undefined,notes:changes.notes,archived_at:changes.archivedAt}).eq('workspace_id',workspaceId).eq('id',id).select().single()); await refresh() },
     async addOrganization(record) { const {client,workspaceId}=requireContext(); const row=await mutate(() => client.from('organizations').insert({workspace_id:workspaceId,name:record.name,legal_name:record.legalName||null,tax_id:record.taxId||null,email:record.email||null,phone:record.phone||null,website:record.website||null,business_activity:record.businessActivity||null,address:record.address||null,commune:record.commune||null,city:record.city||null,region:record.region||null,notes:record.notes||null}).select().single()); const created=mapOrganization(row); await refresh(); return created },

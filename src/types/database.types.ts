@@ -1402,6 +1402,7 @@ export type Database = {
     Functions: {
       bootstrap_user_workspace: {
         Args: {
+          p_country_code?: string
           p_first_name?: string
           p_last_name?: string
           p_vertical_type: string

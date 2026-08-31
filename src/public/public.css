@@ -8,3 +8,4 @@
 .public-brand{display:inline-flex;align-items:center;flex:none;letter-spacing:normal}
 .public-brand img{display:block;width:clamp(118px,10vw,148px);height:auto;max-height:48px;object-fit:contain}
 .public-brand-text{font-family:Georgia,'Times New Roman',serif;font-size:29px;font-weight:700;letter-spacing:-1.2px}
+.auth-form select{width:100%;min-height:46px;border:1px solid #cfd3ce;border-radius:8px;padding:0 38px 0 13px;background:#fff;color:var(--public-ink);font-size:14px}.auth-form select:focus-visible{outline:3px solid rgba(38,79,56,.2);outline-offset:2px;border-color:var(--public-green)}.auth-country-field small{color:var(--public-muted);font-size:11px;font-weight:400;line-height:1.45}
