@@ -78,9 +78,9 @@ Después de crear el proyecto Preview, configurar en el proyecto principal de Ha
 
 ## Migraciones y pruebas
 
-- `20260901004945_partner_public_landings.sql`: tabla, constraints, RLS, RPCs y bucket/policies.
-- `20260901010519_restrict_partner_slug_check.sql`: limita la comprobación de disponibilidad a usuarios autenticados.
-- `20260901011256_grant_partner_photo_policy_helper.sql`: habilita la función mínima usada por las policies de Storage para usuarios autenticados.
+- `20260901005307_partner_public_landings.sql`: tabla, constraints, RLS, RPCs y bucket/policies.
+- `20260901010539_restrict_partner_slug_check.sql`: limita la comprobación de disponibilidad a usuarios autenticados.
+- `20260901011315_grant_partner_photo_policy_helper.sql`: habilita la función mínima usada por las policies de Storage para usuarios autenticados.
 - `supabase/tests/partner_public_landings.sql`: unicidad, publicación pública, 404 lógico e aislamiento entre dos workspaces, todo dentro de una transacción revertida.
 - `npm run test:partner-slugs`: normalización, tildes, URLs, slugs reservados y formato.
 
