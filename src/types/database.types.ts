@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -200,6 +200,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_user_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
+      admin_users: {
+        Row: {
+          created_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       appointment_reminders: {
         Row: {
@@ -685,6 +733,74 @@ export type Database = {
             foreignKeyName: "organizations_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_pages: {
+        Row: {
+          bio: string
+          country_code: string
+          created_at: string
+          email: string | null
+          id: string
+          photo_path: string | null
+          public_email: boolean
+          public_name: string
+          public_whatsapp: boolean
+          published_at: string | null
+          scheduling_enabled: boolean
+          slug: string
+          specialty: string
+          status: string
+          updated_at: string
+          whatsapp: string | null
+          workspace_id: string
+        }
+        Insert: {
+          bio?: string
+          country_code: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          photo_path?: string | null
+          public_email?: boolean
+          public_name?: string
+          public_whatsapp?: boolean
+          published_at?: string | null
+          scheduling_enabled?: boolean
+          slug: string
+          specialty?: string
+          status?: string
+          updated_at?: string
+          whatsapp?: string | null
+          workspace_id: string
+        }
+        Update: {
+          bio?: string
+          country_code?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          photo_path?: string | null
+          public_email?: boolean
+          public_name?: string
+          public_whatsapp?: boolean
+          published_at?: string | null
+          scheduling_enabled?: boolean
+          slug?: string
+          specialty?: string
+          status?: string
+          updated_at?: string
+          whatsapp?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_pages_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -1400,6 +1516,48 @@ export type Database = {
       }
     }
     Functions: {
+      admin_workspace_usage: {
+        Args: {
+          p_current_start: string
+          p_now: string
+          p_previous_end: string
+          p_previous_start: string
+        }
+        Returns: {
+          clients: number
+          clients_current: number
+          clients_previous: number
+          failed_reminders: number
+          first_client_at: string
+          first_name: string
+          first_payment_at: string
+          first_prestation_at: string
+          last_activity_at: string
+          last_name: string
+          member_created_at: string
+          next_payment_at: string
+          opportunities: number
+          payment_requests: number
+          payments: number
+          plan: string
+          prestations: number
+          prestations_current: number
+          prestations_previous: number
+          provider: string
+          recent_events: number
+          subscription_created_at: string
+          subscription_started_at: string
+          subscription_status: string
+          subscription_updated_at: string
+          total_workspaces: number
+          user_id: string
+          vertical_type: string
+          workspace_created_at: string
+          workspace_id: string
+          workspace_name: string
+          workspace_updated_at: string
+        }[]
+      }
       bootstrap_user_workspace: {
         Args: {
           p_country_code?: string
@@ -1433,6 +1591,27 @@ export type Database = {
           p_vertical_type: string
         }
         Returns: string
+      }
+      get_published_partner_page: {
+        Args: { p_country_code: string; p_slug: string }
+        Returns: {
+          bio: string
+          can_auto_schedule: boolean
+          email: string
+          photo_path: string
+          public_name: string
+          slug: string
+          specialty: string
+          whatsapp: string
+        }[]
+      }
+      is_partner_slug_available: {
+        Args: {
+          p_country_code: string
+          p_slug: string
+          p_workspace_id?: string
+        }
+        Returns: boolean
       }
       is_workspace_member: {
         Args: { workspace_uuid: string }
