@@ -4,6 +4,9 @@ import { isValidPartnerSlug, normalizePartnerSlug, PARTNERS_COUNTRY, partnerPhot
 
 export { isValidPartnerSlug, normalizePartnerSlug }
 
+export const PARTNER_PHOTO_MAX_KB = 200
+const PARTNER_PHOTO_MAX_BYTES = PARTNER_PHOTO_MAX_KB * 1024
+
 type PartnerPageRow = Tables<'partner_pages'>
 export type PartnerPageStatus = 'draft' | 'published'
 
@@ -122,7 +125,9 @@ export const partnerLandingRepository = {
   async uploadPhoto(file: File): Promise<string> {
     const allowed = ['image/jpeg', 'image/png', 'image/webp']
     if (!allowed.includes(file.type)) throw new Error('Usa una imagen JPG, PNG o WebP.')
-    if (file.size > 5 * 1024 * 1024) throw new Error('La foto no puede superar 5 MB.')
+    if (file.size > PARTNER_PHOTO_MAX_BYTES) {
+      throw new Error(`La foto no puede superar ${PARTNER_PHOTO_MAX_KB} KB.`)
+    }
     const client = requireClient()
     const workspaceId = await resolveWorkspaceId()
     const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'

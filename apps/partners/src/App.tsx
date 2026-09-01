@@ -53,8 +53,10 @@ export function App() {
   const photoUrl = partnerPhotoPublicUrl(partnersSupabaseUrl, page.photo_path)
   return <main className="partner-page">
     <article>
-      <img className="partner-photo" src={photoUrl} width="720" height="720" alt={`Foto profesional de ${page.public_name}`}/>
-      <header><span className="eyebrow">PROFESIONAL INDEPENDIENTE</span><h1>{page.public_name}</h1><p className="specialty">{page.specialty}</p></header>
+      <div className="partner-profile">
+        <img className="partner-photo" src={photoUrl} width="240" height="240" alt={`Foto profesional de ${page.public_name}`}/>
+        <header><span className="eyebrow">PROFESIONAL INDEPENDIENTE</span><h1>{page.public_name}</h1><p className="specialty">{page.specialty}</p></header>
+      </div>
       <section aria-labelledby="about-title"><span className="eyebrow">QUIÉN SOY</span><h2 id="about-title">Conoce mi trabajo</h2><p className="bio">{page.bio}</p></section>
       <section className="contact" aria-labelledby="contact-title"><span className="eyebrow">CONTACTO</span><h2 id="contact-title">¿Quieres agendar o hacer una consulta?</h2><div>{page.whatsapp && <a className="primary" href={whatsappHref(page.whatsapp)} target="_blank" rel="noreferrer"><MessageCircle/> WhatsApp</a>}{page.email && <a href={`mailto:${page.email}`}><Mail/> Email</a>}</div></section>
       {/* El entitlement ya llega resuelto server-side. La UI de reserva se incorporará en su HU independiente. */}
