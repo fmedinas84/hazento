@@ -138,4 +138,3 @@ export const partnerLandingRepository = {
     if (error) throw new Error('No pudimos eliminar la foto.')
   },
 }
-
