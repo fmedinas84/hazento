@@ -129,6 +129,23 @@ export function PartnerLandingSettings({ profile, entitlementMode, onUpgrade, no
     finally { setUploading(false) }
   }
 
+  const toggleScheduling = async (enabled: boolean) => {
+    change('schedulingEnabled', enabled)
+    setSaving(true)
+    setError('')
+    try {
+      const saved = await partnerLandingRepository.save({ ...draft, schedulingEnabled: enabled })
+      setPage(saved)
+      setDraft(toDraft(saved))
+      notify(enabled ? 'Autoagendamiento visible en tu landing' : 'Autoagendamiento oculto de tu landing')
+    } catch (reason) {
+      change('schedulingEnabled', !enabled)
+      setError(reason instanceof Error ? reason.message : 'No pudimos guardar la visibilidad del autoagendamiento.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const removePhoto = async () => {
     if (!draft.photoPath) return
     setUploading(true)
@@ -154,7 +171,7 @@ export function PartnerLandingSettings({ profile, entitlementMode, onUpgrade, no
 
     <section className="partner-editor-section"><div><span className="section-kicker">Contacto</span><h3>Elige qué datos serán públicos</h3><p>Solo publicaremos la información que marques expresamente. Cualquier visitante de Internet podrá verla.</p></div><div className="form-grid"><label><span>WhatsApp / teléfono</span><input value={draft.whatsapp} maxLength={40} onChange={event => change('whatsapp', event.target.value)}/><span className="partner-public-check"><input type="checkbox" checked={draft.publicWhatsapp} onChange={event => change('publicWhatsapp', event.target.checked)}/> Mostrar en mi landing</span></label><label><span>Email</span><input type="email" value={draft.email} maxLength={254} onChange={event => change('email', event.target.value)}/><span className="partner-public-check"><input type="checkbox" checked={draft.publicEmail} onChange={event => change('publicEmail', event.target.checked)}/> Mostrar en mi landing</span></label></div></section>
 
-    <section className={`partner-scheduling-card ${isPlus ? '' : 'locked'}`}><div className="partner-scheduling-icon">{isPlus ? <Check/> : <LockKeyhole/>}</div><div><h3>Agendamiento automático</h3><p>{isPlus ? 'Permite que tus clientes reserven directamente según tu disponibilidad.' : 'Permite que tus clientes vean tus horarios disponibles y reserven directamente desde tu landing.'}</p>{isPlus ? <label className="partner-public-check"><input type="checkbox" checked={draft.schedulingEnabled} onChange={event => change('schedulingEnabled', event.target.checked)}/> Mostrar reservas en mi landing</label> : <><strong>Disponible con Hazento Plus</strong><button className="link-btn" type="button" onClick={onUpgrade}>Conocer Plus</button></>}</div></section>
+    <section className={`partner-scheduling-card ${isPlus ? '' : 'locked'}`}><div className="partner-scheduling-icon">{isPlus ? <Check/> : <LockKeyhole/>}</div><div><h3>Agendamiento automático</h3><p>{isPlus ? 'Permite que tus clientes reserven directamente según tu disponibilidad.' : 'Permite que tus clientes vean tus horarios disponibles y reserven directamente desde tu landing.'}</p>{isPlus ? <label className="partner-public-check"><input type="checkbox" checked={draft.schedulingEnabled} disabled={saving} onChange={event => void toggleScheduling(event.target.checked)}/> Mostrar reservas en mi landing</label> : <><strong>Disponible con Hazento Plus</strong><button className="link-btn" type="button" onClick={onUpgrade}>Conocer Plus</button></>}</div></section>
     {isPlus && <PartnerSchedulingSettings enabled={draft.schedulingEnabled} notify={notify}/>}
 
     {page?.status === 'published' && <section className="partner-published-link"><div><span>Tu landing</span><strong>{buildPartnerUrl(page.slug, 'commercial').replace(/^https?:\/\//, '')}</strong></div><button className="secondary-btn" type="button" onClick={async () => { await navigator.clipboard.writeText(buildPartnerUrl(page.slug)); notify('Enlace copiado') }}><Copy size={16}/> Copiar enlace</button><a className="secondary-btn" href={buildPartnerUrl(page.slug)} target="_blank" rel="noreferrer">Ver landing <ExternalLink size={16}/></a></section>}
