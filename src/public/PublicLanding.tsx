@@ -32,8 +32,9 @@ function PublicHeader({ user, onOpenAuth }: { user?: User | null; onOpenAuth: (m
     <nav id="public-navigation" className={open ? 'open' : ''} aria-label="Navegación pública">
       <a href="#como-funciona" onClick={close}>Cómo funciona</a>
       <a href="#planes" onClick={close}>Planes</a>
-      {user ? <button className="public-text-action" onClick={() => navigate('/app')}>Ir a Hazento</button> : <button className="public-text-action" onClick={() => { close(); onOpenAuth('login') }}>Ingresar</button>}
-      <button className="public-primary public-header-cta" onClick={() => { close(); user ? navigate('/app') : onOpenAuth('signup', 'free') }}>{user ? 'Ir a Hazento' : 'Crear cuenta gratis'}</button>
+      {user
+        ? <button className="public-primary public-header-cta" onClick={() => { close(); navigate('/app') }}>Ir a Hazento</button>
+        : <><button className="public-text-action" onClick={() => { close(); onOpenAuth('login') }}>Ingresar</button><button className="public-primary public-header-cta" onClick={() => { close(); onOpenAuth('signup', 'free') }}>Crear cuenta gratis</button></>}
     </nav>
   </header>
 }
