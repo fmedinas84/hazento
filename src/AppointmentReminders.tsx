@@ -1,4 +1,4 @@
-import { AlertCircle, BellRing, Check, Clock3, Mail, RefreshCw, Sparkles, XCircle } from 'lucide-react'
+import { AlertCircle, BellRing, Check, Clock3, Mail, Sparkles, XCircle } from 'lucide-react'
 import { canUseFeature, entitlementLabel } from './entitlements'
 import { useRepositories } from './repositories'
 import {
@@ -80,7 +80,6 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
       <div className="reminder-template-variables" aria-label="Variables de la plantilla"><span>Nombre</span><span>Fecha</span><span>Hora</span><span>Dirección</span></div>
       <div className="reminder-email-frame"><div><small>Asunto</small><strong>{previewMessage.subject}</strong></div><pre>{previewMessage.text}</pre></div>
     </section>
-    <section className="reminder-demo-control"><div><RefreshCw size={16}/><span><b>Vista de prueba</b><small>Permite validar Free y Plus sin depender todavía de Billing/Auth.</small></span></div><div className="tabs compact"><button type="button" className={settings.entitlementMode === 'demo_plus' ? 'active' : ''} onClick={() => update({ entitlementMode: 'demo_plus' })}>Plus demo</button><button type="button" className={settings.entitlementMode === 'free' ? 'active' : ''} onClick={() => update({ entitlementMode: 'free' })}>Free</button></div></section>
   </div>
 }
 
