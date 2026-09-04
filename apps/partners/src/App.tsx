@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Mail, MessageCircle, RefreshCw } from 'lucide-react'
 import { isValidPartnerSlug, PARTNERS_COUNTRY, partnerPhotoPublicUrl } from '../../../packages/partners-config'
 import { partnersSupabaseUrl, supabase } from './supabase'
+import { Booking } from './Booking'
 
 type PublicPartnerPage = {
   slug: string
@@ -56,19 +57,17 @@ export function App() {
     <article>
       <div className="partner-hero">
         <aside className="contact-card" aria-labelledby="contact-title">
-          <span className="eyebrow">CONTACTO</span>
           <h2 id="contact-title">Contacta a {firstName}</h2>
-          <p>Elige el canal que prefieras para conversar.</p>
           <div className="contact-actions">{page.whatsapp && <a className="primary" href={whatsappHref(page.whatsapp)} target="_blank" rel="noreferrer"><MessageCircle/> WhatsApp</a>}{page.email && <a href={`mailto:${page.email}`}><Mail/> Email</a>}</div>
-          <button className="schedule-preview" type="button" disabled>Agenda tu cita</button>
+          {page.can_auto_schedule && <a className="schedule-preview" href="#reservar">Agenda tu cita</a>}
         </aside>
         <div className="partner-profile">
           <header><h1>{page.public_name}</h1><p className="specialty">{page.specialty}</p></header>
           <img className="partner-photo" src={photoUrl} width="240" height="240" alt={`Foto profesional de ${page.public_name}`}/>
         </div>
       </div>
-      <section className="about" aria-labelledby="about-title"><h2 id="about-title">¿En qué puedo ayudarte?</h2><p className="bio">{page.bio}</p></section>
-      {/* El entitlement ya llega resuelto server-side. La UI de reserva se incorporará en su HU independiente. */}
+      <section className="about" aria-labelledby="about-title"><h2 id="about-title">En lo que puedo ayudarte</h2><p className="bio">{page.bio}</p></section>
+      <Booking country={country} slug={page.slug} contact={!page.can_auto_schedule ? <section className="manual-booking"><h2>¿Quieres reservar una atención?</h2><p>Ponte en contacto directamente.</p><div className="contact-actions">{page.whatsapp&&<a className="primary" href={whatsappHref(page.whatsapp)}>WhatsApp</a>}{page.email&&<a href={`mailto:${page.email}`}>Email</a>}</div></section> : null}/>
       <footer><span>Gestionado con</span><a href={marketingUrl} rel="noreferrer">Hazento</a></footer>
     </article>
   </main>
