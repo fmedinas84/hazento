@@ -57,9 +57,7 @@ export function App() {
     <article>
       <div className="partner-hero">
         <aside className="contact-card" aria-labelledby="contact-title">
-          <span className="eyebrow">CONTACTO</span>
           <h2 id="contact-title">Contacta a {firstName}</h2>
-          <p>Elige el canal que prefieras para conversar.</p>
           <div className="contact-actions">{page.whatsapp && <a className="primary" href={whatsappHref(page.whatsapp)} target="_blank" rel="noreferrer"><MessageCircle/> WhatsApp</a>}{page.email && <a href={`mailto:${page.email}`}><Mail/> Email</a>}</div>
           {page.can_auto_schedule && <a className="schedule-preview" href="#reservar">Agenda tu cita</a>}
         </aside>
