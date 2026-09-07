@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { AlertCircle, BellRing, Check, Clock3, Mail, Sparkles, XCircle } from 'lucide-react'
 import { canUseFeature, entitlementLabel } from './entitlements'
 import { useRepositories } from './repositories'
@@ -50,7 +51,18 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
   const repositories = useRepositories()
   const settings = repositories.reminderSettings
   const entitled = canUseFeature('email_reminders', { mode: settings.entitlementMode })
-  const update = repositories.reminderRepository.updateSettings
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const savingRef = useRef(false)
+  const update = async (changes: Parameters<typeof repositories.reminderRepository.updateSettings>[0]) => {
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    setSaveError('')
+    try { await repositories.reminderRepository.updateSettings(changes) }
+    catch { setSaveError('No pudimos guardar el cambio. Inténtalo nuevamente.') }
+    finally { savingRef.current = false; setSaving(false) }
+  }
   const professionalName = `${repositories.profile.firstName} ${repositories.profile.lastName}`.trim() || 'Tu profesional'
   const previewMessage = appointmentEmailTemplate({
     professionalName,
@@ -70,11 +82,13 @@ export function ReminderSettingsPanel({ labels, onUpgrade }: { labels: Labels; o
   return <div className="reminder-settings">
     <div className="reminder-settings-heading"><span className="section-kicker">Recordatorios</span><h2>Recordatorios de citas</h2><p>Envía automáticamente un email a tus {labels.accounts.toLowerCase()} antes de una cita.</p><span className="plus-feature-badge"><Sparkles size={13}/> Función Plus</span></div>
     {!entitled ? <section className="reminder-upgrade-card"><BellRing size={24}/><div><h3>Recordatorios automáticos</h3><p>Hazento puede avisar automáticamente a tus {labels.accounts.toLowerCase()} antes de una cita.</p><button className="primary-btn" type="button" onClick={onUpgrade}>Actualiza a Plus para enviar notificaciones</button></div></section> : <section className="reminder-config-card">
-      <label className="setting-switch"><input type="checkbox" checked={settings.emailEnabled} onChange={event => update({ emailEnabled: event.target.checked })}/><span><b>Recordatorio por email</b><small>{entitlementLabel(settings.entitlementMode)}</small></span></label>
-      <div className="reminder-config-row"><label><span>Enviar</span><select value={settings.primaryLeadHours} onChange={event => { const primaryLeadHours = Number(event.target.value); const nextSecondary = primaryLeadHours === settings.secondaryLeadHours ? reminderLeadOptions.find(hours => hours !== primaryLeadHours) : settings.secondaryLeadHours; update({ primaryLeadHours, secondaryLeadHours: nextSecondary }) }}>{reminderLeadOptions.map(hours => <option key={hours} value={hours}>{leadLabel(hours)}</option>)}</select></label></div>
-      <label className="setting-switch secondary-reminder"><input type="checkbox" checked={settings.secondaryEnabled} onChange={event => update({ secondaryEnabled: event.target.checked })}/><span><b>Segundo recordatorio</b><small>Opcional</small></span></label>
-      {settings.secondaryEnabled && <div className="reminder-config-row"><label><span>Enviar</span><select value={settings.secondaryLeadHours} onChange={event => update({ secondaryLeadHours: Number(event.target.value) })}>{reminderLeadOptions.filter(hours => hours !== settings.primaryLeadHours).map(hours => <option key={hours} value={hours}>{leadLabel(hours)}</option>)}</select></label></div>}
+      <label className="setting-switch"><input type="checkbox" disabled={saving} checked={settings.emailEnabled} onChange={event => update({ emailEnabled: event.target.checked })}/><span><b>Recordatorio por email</b><small>{entitlementLabel(settings.entitlementMode)}</small></span></label>
+      <div className="reminder-config-row"><label><span>Enviar</span><select disabled={saving} value={settings.primaryLeadHours} onChange={event => { const primaryLeadHours = Number(event.target.value); const nextSecondary = primaryLeadHours === settings.secondaryLeadHours ? reminderLeadOptions.find(hours => hours !== primaryLeadHours) : settings.secondaryLeadHours; update({ primaryLeadHours, secondaryLeadHours: nextSecondary }) }}>{reminderLeadOptions.map(hours => <option key={hours} value={hours}>{leadLabel(hours)}</option>)}</select></label></div>
+      <label className="setting-switch secondary-reminder"><input type="checkbox" disabled={saving} checked={settings.secondaryEnabled} onChange={event => update({ secondaryEnabled: event.target.checked })}/><span><b>Segundo recordatorio</b><small>Opcional</small></span></label>
+      {settings.secondaryEnabled && <div className="reminder-config-row"><label><span>Enviar</span><select disabled={saving} value={settings.secondaryLeadHours} onChange={event => update({ secondaryLeadHours: Number(event.target.value) })}>{reminderLeadOptions.filter(hours => hours !== settings.primaryLeadHours).map(hours => <option key={hours} value={hours}>{leadLabel(hours)}</option>)}</select></label></div>}
     </section>}
+    {saving && <p role="status">Guardando cambio…</p>}
+    {saveError && <p className="form-error" role="alert">{saveError}</p>}
     <section className="reminder-email-preview" aria-labelledby="reminder-email-preview-title">
       <div className="reminder-email-preview-heading"><div><span className="section-kicker">Vista previa</span><h3 id="reminder-email-preview-title">Email que recibirá tu cliente</h3><p>Atenciones y clases utilizan esta misma plantilla.</p></div><Mail size={20}/></div>
       <div className="reminder-template-variables" aria-label="Variables de la plantilla"><span>Nombre</span><span>Fecha</span><span>Hora</span><span>Dirección</span></div>
