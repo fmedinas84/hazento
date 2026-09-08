@@ -1,0 +1,7 @@
+.rich-bio{line-height:1.7;overflow-wrap:anywhere;white-space:normal}
+.rich-bio p{margin:0 0 1em;white-space:normal}
+.rich-bio h3,.rich-bio h4{line-height:1.3;margin:1.2em 0 .5em;color:inherit}
+.rich-bio h3{font-size:1.5em}.rich-bio h4{font-size:1.2em}
+.rich-bio ul,.rich-bio ol{padding-left:1.5em;margin:.5em 0 1em}
+.rich-bio ul{list-style:disc}.rich-bio ol{list-style:decimal}
+.rich-bio li{margin:.3em 0}.rich-bio>:first-child{margin-top:0}.rich-bio>:last-child{margin-bottom:0}
