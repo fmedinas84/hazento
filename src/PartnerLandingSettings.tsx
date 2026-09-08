@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { BIO_LIMIT } from '../packages/partners-config/bio-format'
 import { Check, Copy, ExternalLink, Globe2, ImagePlus, LockKeyhole, Trash2 } from 'lucide-react'
 import { canUseFeature, type EntitlementMode } from './entitlements'
 import {
@@ -98,6 +99,7 @@ export function PartnerLandingSettings({ profile, entitlementMode, onUpgrade, no
   const change = <K extends keyof PartnerPageDraft>(key: K, value: PartnerPageDraft[K]) => setDraft(current => ({ ...current, [key]: value }))
 
   const save = async (status: PartnerPageDraft['status'] = draft.status) => {
+    if (draft.bio.length > BIO_LIMIT) { setError('Acorta la descripción o reduce el formato antes de guardar.'); return }
     if (previousSlug.current && previousSlug.current !== draft.slug && !window.confirm('El enlace anterior dejará de funcionar. ¿Quieres guardar la nueva dirección?')) return
     if (status === 'published' && !canPublish) { setError('Completa la foto, presentación, contacto y dirección disponible antes de publicar.'); return }
     setSaving(true)
@@ -178,4 +180,7 @@ export function PartnerLandingSettings({ profile, entitlementMode, onUpgrade, no
   </div>
 }
 import { RichBio } from '../packages/partners-config/RichBio'
-import { BioEditor } from './BioEditor'
+const LazyBioEditor = lazy(() => import('./BioEditor').then(module => ({ default: module.BioEditor })))
+function BioEditor(props: { value: string; onChange: (value: string) => void }) {
+  return <Suspense fallback={<p role="status">Cargando editor…</p>}><LazyBioEditor {...props}/></Suspense>
+}

@@ -1,5 +1,28 @@
 import { Fragment, type ReactNode } from 'react'
 import './rich-bio.css'
+import { decodeBio, type BioNode } from './bio-format'
+
+function richNode(node: BioNode, key: number): ReactNode {
+  if (node.type === 'text') {
+    let text: ReactNode = node.text || ''
+    for (const mark of node.marks || []) {
+      if (mark.type === 'bold') text = <strong>{text}</strong>
+      if (mark.type === 'italic') text = <em>{text}</em>
+      if (mark.type === 'underline') text = <u>{text}</u>
+    }
+    return <Fragment key={key}>{text}</Fragment>
+  }
+  const children = node.content?.map(richNode)
+  switch (node.type) {
+    case 'heading': return node.attrs?.level === 1 ? <h3 key={key}>{children}</h3> : <h4 key={key}>{children}</h4>
+    case 'paragraph': return <p key={key}>{children}</p>
+    case 'bulletList': return <ul key={key}>{children}</ul>
+    case 'orderedList': return <ol key={key}>{children}</ol>
+    case 'listItem': return <li key={key}>{children}</li>
+    case 'hardBreak': return <br key={key}/>
+    default: return <Fragment key={key}>{children}</Fragment>
+  }
+}
 
 // A deliberately small formatting vocabulary. HTML and URLs remain plain text.
 function inline(text: string): ReactNode[] {
@@ -12,6 +35,8 @@ function inline(text: string): ReactNode[] {
 }
 
 export function RichBio({ value }: { value: string }) {
+  const document = decodeBio(value)
+  if (document) return <div className="rich-bio">{richNode(document, 0)}</div>
   const lines = value.split(/\r?\n/)
   const blocks: ReactNode[] = []
   for (let i = 0; i < lines.length;) {
