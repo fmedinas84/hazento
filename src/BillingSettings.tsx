@@ -14,7 +14,6 @@ const formatDate = (date?: string) => date ? new Intl.DateTimeFormat('es-CL', { 
 export function BillingSettings() {
   const [subscription, setSubscription] = useState<BillingSubscription>(freePlan)
   const [publicKey, setPublicKey] = useState('')
-  const [configurationMessage, setConfigurationMessage] = useState('')
   const [showCheckout, setShowCheckout] = useState(false)
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
@@ -38,10 +37,10 @@ export function BillingSettings() {
         if (config.configured && config.publicKey) {
           initMercadoPago(config.publicKey, { locale: 'es-CL' })
           setPublicKey(config.publicKey)
-        } else setConfigurationMessage(config.message || 'Mercado Pago aún no está configurado en este entorno.')
+        }
         setSubscription(current || freePlan)
       })
-      .catch(() => setConfigurationMessage('Inicia el proyecto con Vercel Dev y configura las variables de Mercado Pago para probar Checkout.'))
+      .catch(() => undefined)
       .finally(() => active && setLoading(false))
     return () => { active = false }
   }, [])
@@ -82,7 +81,6 @@ export function BillingSettings() {
       <article className={`billing-plan ${!plusSelected ? 'selected' : ''}`}><div><span>{freeProductPlan.name.toUpperCase()}</span><strong>{formatPlanPrice(freeProductPlan)}</strong><small>CLP / mes</small></div><p>{freeProductPlan.description}</p><button className="secondary-btn" type="button" disabled={!plusSelected} onClick={() => plusSelected && updateSubscription('cancel')}>{!plusSelected ? 'Plan actual' : 'Volver a Free'}</button></article>
       <article className={`billing-plan billing-plan-plus ${plusSelected ? 'selected' : ''}`}><div><span>{plusProductPlan.name.toUpperCase()}</span><strong>{formatPlanPrice(plusProductPlan)}</strong><small>CLP / mes</small></div><p>{plusProductPlan.description}</p>{!plusSelected ? <button className="primary-btn" type="button" disabled={!publicKey || loading} onClick={() => { setError(''); setShowCheckout(true) }}>Cambiar a Plus</button> : <span className="billing-plan-active"><CheckCircle2 size={15}/> Plan seleccionado</span>}</article>
     </div>
-    {configurationMessage && <div className="billing-notice"><AlertCircle size={17}/><div><strong>Facturación no configurada</strong><p>{configurationMessage}</p></div></div>}
     {error && <div className="billing-notice billing-error" role="alert"><AlertCircle size={17}/><div><strong>No pudimos completar la operación</strong><p>{error}</p></div></div>}
     {showCheckout && !plusSelected && <section className="billing-section billing-payment" aria-labelledby="billing-payment-title">
       <div className="billing-section-heading"><span className="billing-section-icon"><CreditCard size={18}/></span><div><h3 id="billing-payment-title">Autoriza Hazento Plus</h3><p>Hazento Plus · {formatPlanPrice(plusProductPlan)} al mes · Cobro mensual recurrente</p></div></div>
