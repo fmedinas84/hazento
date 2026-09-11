@@ -8,4 +8,10 @@ El lector público acepta exclusivamente los nodos y marcas conocidos y genera e
 
 App y Partners deben desplegar esta versión antes de comenzar a guardar el formato v2. No se modificó Supabase ni producción durante la implementación.
 
+## Build independiente de Partners
+
+`apps/partners/tsconfig.app.json` resuelve los tipos de React desde sus propias dependencias, incluso para el código compartido en `packages/partners-config`. Vite usa `resolve.dedupe` para resolver React y React DOM desde la raíz de Partners. No se necesita instalar las dependencias de Hazento App para desplegar Partners.
+
+Para validar este aislamiento, copiar únicamente `apps/partners` (sin `node_modules`, `dist`, `.vercel` ni archivos `.env`) y `packages/partners-config` a una carpeta temporal, conservando la estructura relativa. Ejecutar `npm ci` y `npm run build` dentro de esa copia de `apps/partners`, sin crear `node_modules` en la raíz temporal.
+
 Validación: tests de compatibilidad, escape de HTML, lista de formatos permitidos y serialización reversible en `scripts/validate-rich-bio.mjs`. Prueba de navegador aislada sin datos reales: formatos combinados, listas, guardar/recargar local, 360 px sin desbordamiento y escritorio; sin errores de navegador observados. La persistencia remota debe comprobarse en Preview con una cuenta QA.
