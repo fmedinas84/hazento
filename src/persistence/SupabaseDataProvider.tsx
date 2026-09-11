@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { AccountData, ActivityData, EngagementData, OpportunityData, OrganizationData, PaymentData, PaymentRequestData, PaymentRequestItemData, PrestationData } from '../data'
@@ -33,7 +33,6 @@ const emptyState: DataState = {
   reminderSettings: defaultReminderSettings,
 }
 const publicPaths = new Set(['/', '/login', '/register', '/forgot-password', '/reset-password'])
-const isPublicLocation = () => publicPaths.has(window.location.pathname)
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()
 const money = (value: number | null) => `$${Math.round(Number(value || 0)).toLocaleString('es-CL')}`
@@ -88,20 +87,41 @@ function mapRequest(row: PaymentRequestRow): PaymentRequestData { return { id: r
 
 export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User|null>(null)
+  const [sessionResolved, setSessionResolved] = useState(false)
   const [state, setState] = useState<DataState>(emptyState)
   const [workspaceId, setWorkspaceId] = useState<string|null>(null)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [locationPath, setLocationPath] = useState(() => window.location.pathname)
   const [status, setStatus] = useState<'loading'|'ready'|'error'>('loading')
   const [error, setError] = useState<string|null>(null)
+  const sessionUserId = useRef<string|null>(null)
+  const loadStartedFor = useRef<string|null>(null)
+  const loadGeneration = useRef(0)
+
+  const acceptUser = useCallback((nextUser: User|null) => {
+    setSessionResolved(true)
+    if (sessionUserId.current !== (nextUser?.id || null)) {
+      sessionUserId.current = nextUser?.id || null
+      loadGeneration.current++
+      loadStartedFor.current = null
+      setState(emptyState); setWorkspaceId(null); setError(null)
+      setStatus(nextUser ? 'loading' : 'ready')
+    }
+    setUser(nextUser)
+  }, [])
 
   const load = useCallback(async (activeUser: User) => {
+    const generation = ++loadGeneration.current
+    loadStartedFor.current = activeUser.id
+    const isCurrent = () => generation === loadGeneration.current && sessionUserId.current === activeUser.id
     if (!supabase) { setStatus('error'); setError('Supabase staging no está configurado.'); return }
     setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null)
     try {
       const requestedCountry = enabledCountryCode(activeUser.user_metadata?.country_code) ?? 'CL'
       const { data: boot, error: bootError } = await supabase.rpc('bootstrap_user_workspace', { p_workspace_name: 'Mi negocio', p_vertical_type: 'health', p_country_code: requestedCountry, p_first_name: '', p_last_name: '' })
       if (bootError) throw bootError
+      if (!isCurrent()) return
+      if (!boot) throw new Error('No pudimos identificar tu workspace. Inténtalo nuevamente.')
       const resolvedWorkspaceId = boot
       const [profileResult, workspaceResult, accountsResult, organizationsResult, servicesResult, opportunitiesResult, engagementsResult, prestationsResult, activitiesResult, requestsResult, requestItemsResult, paymentsResult, allocationsResult, remindersResult, subscriptionResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', activeUser.id).single(),
@@ -111,6 +131,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
         supabase.from('payment_requests').select('*').eq('workspace_id', resolvedWorkspaceId), supabase.from('payment_request_items').select('*').eq('workspace_id', resolvedWorkspaceId), supabase.from('payments').select('*').eq('workspace_id', resolvedWorkspaceId), supabase.from('payment_allocations').select('*').eq('workspace_id', resolvedWorkspaceId), supabase.from('appointment_reminders').select('*').eq('workspace_id', resolvedWorkspaceId), supabase.from('subscriptions').select('plan,status').eq('workspace_id',resolvedWorkspaceId).maybeSingle(),
       ])
       const failed = [profileResult,workspaceResult,accountsResult,organizationsResult,servicesResult,opportunitiesResult,engagementsResult,prestationsResult,activitiesResult,requestsResult,requestItemsResult,paymentsResult,allocationsResult,remindersResult,subscriptionResult].find(result => result.error)
+      if (!isCurrent()) return
       if (failed?.error) throw failed.error
       const accounts = (accountsResult.data || []).map(mapAccount)
       const paymentAllocations = (allocationsResult.data || []).filter(row => row.prestation_id).map(row => ({ id: row.id, paymentId: row.payment_id, prestationId: row.prestation_id!, amount: Number(row.amount) }))
@@ -130,17 +151,30 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
         appointmentReminders: (remindersResult.data || []).map((row: ReminderRow): AppointmentReminder => ({ id: row.id, workspaceId: row.workspace_id, prestationId: row.prestation_id, accountId: row.account_id, recipientEmail: row.recipient_email, scheduledFor: row.scheduled_for, status: row.status as AppointmentReminder['status'], slot: row.slot as AppointmentReminder['slot'], leadHours: row.lead_hours, provider: row.provider as AppointmentReminder['provider'], sentAt: optional(row.sent_at), providerMessageId: optional(row.provider_message_id), errorMessage: optional(row.error_message), createdAt: row.created_at, updatedAt: row.updated_at })),
       })
       setStatus('ready')
-    } catch (cause) { setError(friendlyError(cause)); setStatus('error') }
+    } catch (cause) { if (isCurrent()) { setError(friendlyError(cause)); setStatus('error') } }
   }, [])
 
-  useEffect(() => { if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }; supabase.auth.getSession().then(({data}) => { setUser(data.session?.user || null); if (data.session?.user && !isPublicLocation()) void load(data.session.user); else setStatus('ready') }); const { data } = supabase.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { setPasswordRecovery(true); setUser(session?.user || null); setStatus('ready'); return } if (session?.user) { setUser(session.user); if (event === 'INITIAL_SESSION' && isPublicLocation()) { setStatus('ready'); return } setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); queueMicrotask(() => void load(session.user)) } else { setUser(null); setState(emptyState); setWorkspaceId(null); setStatus('ready') } }); return () => data.subscription.unsubscribe() }, [load])
+  useEffect(() => {
+    if (!supabase) { setStatus('error'); setError('Supabase no está configurado.'); return }
+    // INITIAL_SESSION already restores the persisted session. Keep API work outside
+    // the auth callback; SIGNED_IN/TOKEN_REFRESHED for the same user do not reset data.
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+      else if (!session) setPasswordRecovery(false)
+      acceptUser(session?.user || null)
+    })
+    return () => { data.subscription.unsubscribe(); loadGeneration.current++; loadStartedFor.current = null }
+  }, [acceptUser])
   useEffect(() => { const syncLocation = () => setLocationPath(window.location.pathname); window.addEventListener('popstate', syncLocation); return () => window.removeEventListener('popstate', syncLocation) }, [])
+  useEffect(() => {
+    if (user && !passwordRecovery && !publicPaths.has(locationPath) && loadStartedFor.current !== user.id) void load(user)
+  }, [user, locationPath, passwordRecovery, load])
 
-  const requireContext = () => { if (!supabase || !workspaceId) throw new Error('No existe un workspace activo.'); return { client: supabase, workspaceId } }
+  const requireContext = () => { if (!supabase || !workspaceId || status !== 'ready' || sessionUserId.current !== user?.id) throw new Error('Tu espacio de trabajo aún no está disponible. Espera a que termine de cargar o reintenta la carga.'); return { client: supabase, workspaceId } }
   const refresh = async () => { if (user) await load(user) }
   const mutate = async <T,>(operation: () => PromiseLike<{ data: T | null; error: { message: string } | null }>, after?: (data: T) => void) => { const result = await operation(); if (result.error || result.data == null) throw new Error(result.error?.message || 'No se recibieron datos.'); after?.(result.data); return result.data }
 
-  const value = useMemo<DataStore>(() => ({ ...state, repositoryStatus: status, repositoryError: error, retryRepository: () => { if (user) void load(user) },
+  const value = useMemo<DataStore>(() => ({ ...state, repositoryStatus: status === 'ready' && !workspaceId ? 'loading' : status, repositoryError: error, retryRepository: () => { if (user) void load(user) },
     async signOut() { if (!supabase) return; const { error: signOutError } = await supabase.auth.signOut(); if (signOutError) throw new Error('No pudimos cerrar la sesión. Inténtalo nuevamente.'); window.history.replaceState({}, '', '/') },
     async updateProfile(changes) { const { client }=requireContext(); await mutate(() => client.from('profiles').update({ first_name: changes.firstName, last_name: changes.lastName, phone: changes.phone }).eq('id', user!.id).select().single()); await refresh() },
     async updateWorkspace(changes) { const {client,workspaceId}=requireContext(); await mutate(() => client.from('workspaces').update({ name: changes.name, address_line: changes.address, timezone: changes.timezone, vertical_type: changes.vertical }).eq('id',workspaceId).select().single()); await refresh() },
@@ -177,7 +211,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   const pathname = locationPath
   const isPublicPath = pathname === '/' || pathname in publicModes
   const onAuthenticated = (nextUser: User) => {
-    setState(emptyState); setWorkspaceId(null); setStatus('loading'); setError(null); setUser(nextUser)
+    acceptUser(nextUser)
     const params = new URLSearchParams(window.location.search)
     const next = params.get('next')
     const planIntent = params.get('plan')
@@ -187,6 +221,7 @@ export function SupabaseDataProvider({ children }: { children: ReactNode }) {
   }
   if (passwordRecovery) return <PublicLanding user={user} initialAuthMode="update" recoveryMode onAuthenticated={onAuthenticated} onRecoveryComplete={() => setPasswordRecovery(false)} authOnly/>
   if (isPublicPath) return <PublicLanding user={user} initialAuthMode={publicModes[pathname] || 'login'} onAuthenticated={onAuthenticated} authOnly={pathname !== '/'}/>
+  if (!sessionResolved) return <div role="status" aria-live="polite">Cargando tu sesión…</div>
   if (!user) {
     const next = `${pathname}${window.location.search}`
     window.history.replaceState({}, '', `/login?next=${encodeURIComponent(next)}`)
